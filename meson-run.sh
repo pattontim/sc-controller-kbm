@@ -8,6 +8,7 @@ if [[ $(uname) == *"MINGW"??"_NT"* ]] ; then
 	PATHS="%CD%\\src\\client;$PATHS"
 	PATHS="%CD%\\src\\osd\\common;$PATHS"
 	PATHS="%CD%\\src\\osd\\menus;$PATHS"
+	PATHS="%CD%\\src\\osd\\keyboard;$PATHS"
 	PATHS="%CD%\\src\\virtual-device;$PATHS"
 	EXE="$(echo "$1" | tr \"/\" \"\\\\\").exe"
 	export IM="$(echo "$1" | rev | cut -d / -f 1 | rev)"

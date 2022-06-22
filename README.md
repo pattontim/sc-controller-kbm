@@ -12,7 +12,7 @@ User-mode driver and mapper for Steam Controller, DS4 and similar controllers.
 
 ## WIP Windows/BSD/Linux/android port in c
 
-Hi there. What you are browsing is WIP branch in which I'm rewriting major parts of SCC into much more portable and much less python requiring code.
+Hi there. What you are browsing is WIP branch in which I'm removing functionality to make a simpler binary capable of simple kbm input
 
 It should be somehow usable, but there is no GUI and only very basic OSD menu right now.
 See this [wiki page](https://github.com/kozec/sc-controller/wiki/Running-SC-Controller-on-Windows) for how to run it.
@@ -38,12 +38,19 @@ $ ninja -C build scc-daemon
 ###### on Windows
 ```
 # (you'll need mingw)
-$ pacman -S --needed mingw-w64-i686-pkg-config mingw-w64-i686-meson mingw-w64-i686-gcc mingw-w64-i686-python2 mingw-w64-i686-gtk3 mingw-w64-i686-libusb mingw-w64-i686-libmicroutils
+$ pacman -S --needed mingw-w64-i686-pkg-config mingw-w64-i686-meson mingw-w64-i686-gcc mingw-w64-i686-python2 mingw-w64-i686-gtk3 mingw-w64-i686-libusb mingw-w64-i686-gcc-libs mingw-w64-i686-gettext  mingw-w64-i686-gmp mingw-w64-i686-libiconv  mingw-w64-i686-libsystre mingw-w64-i686-libtre mingw-w64-i686-libwinpthread mingw-w64-i686-mpc mingw-w64-i686-mpfr mingw-w64-i686-gtk3 mingw-w64-i686-python2-gobject2
+
 $ export PROCESSOR_ARCHITEW6432=x86
 $ meson build
-$ ninja -C build sc-controller  # start GUI
 $ ninja -C build scc-daemon     # start without gui to check why it doesn't work
+
+To run the code and detect the SD you must copy all the the driver files produced when running make-win32-release.exe to a new folder in the root called drivers.
 ```
+
+$ ninja -C build sc-controller  # start GUI
+
+This no longer works because the GUI isn't supported.
+
 
 ###### on OpenBSD or NetBSD
 ```

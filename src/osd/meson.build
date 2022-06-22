@@ -33,18 +33,24 @@ scc_osd_keyboard = executable('scc-osd-keyboard',
 
 run_target('scc-osd-menu',
 	command: [
-		'sh', '../../meson-run.sh', 'src/osd/scc-osd-menu',
+		'sh', '../meson-run.sh', 'src/osd/scc-osd-menu',
 		'-f', '../share/default_menus/Default.menu',
 		'-t', 'radial',
 		'-c', 'LEFT',
 		# '-f', '/e/SC Controller/share/default_menus/Default.menu'
 	],
-	dependencies: [scc_osd_menu])
+	depends: [scc_osd_menu])
 
 
 run_target('scc-osd-daemon',
 	command: [
-		'sh', '../../meson-run.sh', 'src/osd/scc-osd-daemon',
+		'sh', '../meson-run.sh', 'src/osd/scc-osd-daemon',
 	],
-	dependencies: [scc_osd_daemon])
+	depends: [scc_osd_daemon])
+
+run_target('scc-osd-keyboard',
+	command: [
+		'sh', '../meson-run.sh', 'src/osd/scc-osd-keyboard',
+	],
+	depends: [scc_osd_keyboard])
 
