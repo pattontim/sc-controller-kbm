@@ -44,19 +44,12 @@ $ export PROCESSOR_ARCHITEW6432=x86
 $ meson build
 $ ninja -C build scc-daemon     # start without gui to check why it doesn't work
 
-To run the code and detect the SD you must copy all the the driver files produced when running make-win32-release.exe to a new folder in the root called drivers.
 ```
+To run the code and detect the SD you must copy all the the driver files produced when running make-win32-release.exe to a new folder in the root called drivers.
 
+```
 $ ninja -C build sc-controller  # start GUI
+```
 
 This no longer works because the GUI isn't supported.
-
-
-###### on OpenBSD or NetBSD
-```
-# (install pkg-config, ninja-build and meson packages first. Meson is available as pip package)
-$ meson build
-$ ninja -C build
-$ ninja -C build scc-daemon
-```
 
