@@ -72,6 +72,7 @@ static void osd_window_show(GtkWidget* widget) {
 	LONG style = GetWindowLong(hwnd, GWL_EXSTYLE);
 	SetWindowLong(hwnd, GWL_EXSTYLE, style | WS_EX_TRANSPARENT | WS_EX_LAYERED | WS_EX_NOACTIVATE);
 	SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
+	gtk_widget_set_opacity(widget, 0.5);
 	gtk_window_show(widget);
 #else
 	gtk_window_show(widget);

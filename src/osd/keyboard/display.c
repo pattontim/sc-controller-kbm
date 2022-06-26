@@ -114,7 +114,7 @@ bool on_redraw(GtkWidget* draw_area, cairo_t* ctx, void* _priv) {
 		cairo_stroke(ctx);
 		
 		// help icon
-		if (b->scbutton) {
+		/* if (b->scbutton) {
 			GdkPixbuf* pbuf = get_button_pixbuf(priv, b->scbutton, scbutton_size);
 			if (pbuf != NULL) {
 				int height = gdk_pixbuf_get_height(pbuf);
@@ -126,7 +126,7 @@ bool on_redraw(GtkWidget* draw_area, cairo_t* ctx, void* _priv) {
 				menu_icon_draw_pixbuf(pbuf, ctx, 0, 0, &priv->color_text);
 				cairo_restore(ctx);
 			}
-		}
+		} */
 		
 		// label
 		if ((b->keycode) || (b->label)) {
@@ -211,50 +211,50 @@ bool on_redraw(GtkWidget* draw_area, cairo_t* ctx, void* _priv) {
 		}
 		if (area_index < 0) continue;
 		
-		struct HelpArea help_area = priv->help_areas[area_index];
-		FOREACH_IN(HelpLine*, line, priv->help_lines) {
-			if (line->align_right != align_right)
-				continue;
-			cairo_text_extents_t extents;
-			cairo_text_extents(ctx, line->text, &extents);
+		// struct HelpArea help_area = priv->help_areas[area_index];
+		// FOREACH_IN(HelpLine*, line, priv->help_lines) {
+		// 	if (line->align_right != align_right)
+		// 		continue;
+		// 	cairo_text_extents_t extents;
+		// 	cairo_text_extents(ctx, line->text, &extents);
 			
-			GdkPixbuf* pbuf = get_button_pixbuf(priv, line->scbutton, scbutton_size);
-			if (pbuf != NULL) {
-				cairo_save(ctx);
-				int height = gdk_pixbuf_get_height(pbuf);
-				if (help_area.align_right)
-					cairo_translate(ctx, (int)(help_area.limits.x1 - scbutton_size),
-									(int)(help_area.limits.y0 + (scbutton_size - height) * 0.5));
-				else
-					cairo_translate(ctx, (int)help_area.limits.x0,
-									(int)(help_area.limits.y0 + (scbutton_size - height) * 0.5));
-				menu_icon_draw_pixbuf(pbuf, ctx, 0, 0, &priv->color_text);
-				cairo_restore(ctx);
-			}
+		// 	GdkPixbuf* pbuf = get_button_pixbuf(priv, line->scbutton, scbutton_size);
+		// 	if (pbuf != NULL) {
+		// 		cairo_save(ctx);
+		// 		int height = gdk_pixbuf_get_height(pbuf);
+		// 		if (help_area.align_right)
+		// 			cairo_translate(ctx, (int)(help_area.limits.x1 - scbutton_size),
+		// 							(int)(help_area.limits.y0 + (scbutton_size - height) * 0.5));
+		// 		else
+		// 			cairo_translate(ctx, (int)help_area.limits.x0,
+		// 							(int)(help_area.limits.y0 + (scbutton_size - height) * 0.5));
+		// 		menu_icon_draw_pixbuf(pbuf, ctx, 0, 0, &priv->color_text);
+		// 		cairo_restore(ctx);
+		// 	}
 			
-			cairo_save(ctx);
-			// TODO: Clip to area here?
-			if (help_area.align_right)
-				cairo_move_to(ctx,
-							(int)(help_area.limits.x1 - scbutton_size - extents.width - 2),
-							// TODO: I'm not sure if this calculation makes any kind of sense
-							(int)(help_area.limits.y0 + hextents.height + extents.y_bearing
-									+ (scbutton_size * 0.5)));
-			else
-				cairo_move_to(ctx,
-							(int)(help_area.limits.x0 + scbutton_size + 2),
-							// TODO: Same as above
-							(int)(help_area.limits.y0 + hextents.height + extents.y_bearing
-									+ (scbutton_size * 0.5)));
-			cairo_show_text(ctx, line->text);
-			cairo_restore(ctx);
-			if (help_area.limits.y0 + hextents.height > help_area.limits.y1) {
-				// Can't stuff more lines to this area
-				break;
-			} else {
-				help_area.limits.y0 += (int)(hextents.height + 2 + extents.y_bearing * 0.2);
-			}
-		}
+		// 	cairo_save(ctx);
+		// 	// TODO: Clip to area here?
+		// 	if (help_area.align_right)
+		// 		cairo_move_to(ctx,
+		// 					(int)(help_area.limits.x1 - scbutton_size - extents.width - 2),
+		// 					// TODO: I'm not sure if this calculation makes any kind of sense
+		// 					(int)(help_area.limits.y0 + hextents.height + extents.y_bearing
+		// 							+ (scbutton_size * 0.5)));
+		// 	else
+		// 		cairo_move_to(ctx,
+		// 					(int)(help_area.limits.x0 + scbutton_size + 2),
+		// 					// TODO: Same as above
+		// 					(int)(help_area.limits.y0 + hextents.height + extents.y_bearing
+		// 							+ (scbutton_size * 0.5)));
+		// 	cairo_show_text(ctx, line->text);
+		// 	cairo_restore(ctx);
+		// 	if (help_area.limits.y0 + hextents.height > help_area.limits.y1) {
+		// 		// Can't stuff more lines to this area
+		// 		break;
+		// 	} else {
+		// 		help_area.limits.y0 += (int)(hextents.height + 2 + extents.y_bearing * 0.2);
+		// 	}
+		// }
 	}
 	
 	return false;
