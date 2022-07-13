@@ -62,6 +62,7 @@ typedef struct _OSDKeyboardPrivate {
 	GdkRGBA						color_button1;
 	GdkRGBA						color_button1_border;
 	GdkRGBA						color_text;
+	guint						mod_state;
 } OSDKeyboardPrivate;
 
 

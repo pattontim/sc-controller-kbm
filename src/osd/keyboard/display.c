@@ -19,9 +19,12 @@
 	#include <gdk/gdkx.h>
 #endif
 
+static const char* LOWCASE = "67890=qjfypx /gdorsb- u ne m.[citalh]'`vzkw;,12345";
+static const char* SHIFTCASE = "^&*()+QJFYPX ?GDORSB_~U NE M>{CITALH}\"~VZKW:<!@#$%";
 #define LINE_WIDTH			2
 #define FONT_SIZE			38
 #define HELP_FONT_SIZE		16
+
 
 inline static void button_as_path(cairo_t* ctx, Button* b) {
 	cairo_move_to(ctx, b->pos.x, b->pos.y);
@@ -86,8 +89,9 @@ bool on_redraw(GtkWidget* draw_area, cairo_t* ctx, void* _priv) {
 	cairo_set_font_size(ctx, FONT_SIZE);
 	cairo_font_extents(ctx, &fextents);
 	int scbutton_size = hextents.height;
-	
+
 	// Buttons
+	int i = 0;
 	FOREACH_IN(Button*, b, priv->buttons) {
 		bool hilighted = false;
 		bool pressed = false;
@@ -160,7 +164,17 @@ bool on_redraw(GtkWidget* draw_area, cairo_t* ctx, void* _priv) {
 					strbuilder_addf(label, "%lc", unicode);
 #else
 				char* str = scc_action_get_description(b->action, AC_OSD);
-				strbuilder_addf(label, "%s", str);
+				if((priv->mod_state & GDK_SHIFT_MASK) == GDK_SHIFT_MASK){
+					str[0] = SHIFTCASE[i];
+					str[1] = '\0';
+					
+					strbuilder_addf(label, "%s", str);
+				} else {
+					for(int i = 0; str[i]; i++){
+  						str[i] = tolower(str[i]);
+					}
+					strbuilder_addf(label, "%s", str);
+				}
 				free(str);
 #endif
 			}
@@ -182,6 +196,7 @@ bool on_redraw(GtkWidget* draw_area, cairo_t* ctx, void* _priv) {
 			cairo_stroke(ctx);
 			cairo_restore(ctx);
 		}
+		++i;
 	}
 	strbuilder_free(label);
 	
