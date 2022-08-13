@@ -2,13 +2,14 @@
 	"buttons": {
 		"A"         : { "action": "button(Keys.KEY_ENTER)" },
 		"B"         : { "action": "button(Keys.KEY_ESC)" },
-		"BACK"      : { "action": "button(Keys.KEY_BACKSPACE)" },
-		"C"          : { "action": "keyboard()" },
+		"BACK"      : { "action": "keyboard()" },
 		"CPADPRESS" : { "action": "button(Keys.BTN_LEFT)" },
 		"LB"        : { "action": "button(Keys.KEY_BACKSPACE)" },
+		"START"      : { "action": "keyboard()" },
 		"RB"        : { "action": "button(Keys.KEY_SPACE)" },
 		"RPAD"	    : { "action": "button(Keys.BTN_LEFT)" },
 		"START"     : { "action": "button(Keys.KEY_LEFTSHIFT)" },
+		"DOTS":		{ "action": "button(Keys.KEY_LEFTMETA)" },
 		"LGRIP":	{ "action": "button(Keys.KEY_LEFTSHIFT)" },
 		"RGRIP":	{ "action": "button(Keys.KEY_RIGHTALT)" },
 		"LGRIP2":	{ "action": "button(Keys.KEY_LEFTSHIFT)" },
@@ -34,7 +35,7 @@
 		"action": "mouse()"
 	},
 	
-	"stick": { "action": "dpad(button(Keys.KEY_UP), button(Keys.KEY_DOWN), button(Keys.KEY_LEFT), button(Keys.KEY_RIGHT))" },
+	"stick": { "action": "dpad(keyboard(), keyboard(), button(Keys.KEY_LEFT), button(Keys.KEY_RIGHT))" },
 	
 	"dpad": { "action": "dpad(button(Keys.KEY_UP), button(Keys.KEY_DOWN), button(Keys.KEY_LEFT), button(Keys.KEY_RIGHT))" },
 

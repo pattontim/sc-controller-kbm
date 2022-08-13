@@ -19,8 +19,8 @@
 	#include <gdk/gdkx.h>
 #endif
 
-static const char* LOWCASE = "67890=qjfypx /gdorsb- u ne m.[citalh]'`vzkw;,12345";
-static const char* SHIFTCASE = "^&*()+QJFYPX ?GDORSB_~U NE M>{CITALH}\"~VZKW:<!@#$%";
+static const char* LOWCASE =   ",citalh.'u ne m-/gdorsb; qjfypx [ vzkw=]1234567890";
+static const char* SHIFTCASE = "<CITALH>\"U NE M_?GDORSB: QJFYPX { VZKW+}!@#$%^&*()";
 #define LINE_WIDTH			2
 #define FONT_SIZE			38
 #define HELP_FONT_SIZE		16
