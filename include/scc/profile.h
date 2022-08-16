@@ -12,6 +12,12 @@ typedef struct Profile Profile;
 
 struct Profile {
 	RC_HEADER;
+
+	/**
+	 * Only when the SC keyboard is specifically open. 
+	 * 
+	 */
+	bool sc_keyboard;
 	
 	/**
 	 * Set to type of profile. String constant used internally as form of type check

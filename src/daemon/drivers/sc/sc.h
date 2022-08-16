@@ -113,8 +113,8 @@ static uint32_t BT_BUTTONS[] = {
 	SCB_BACK,				// 12
 	SCB_C,					// 13
 	SCB_START,				// 14
-	SCB_LGRIP,				// 15
 	SCB_RGRIP,				// 16
+	SCB_LGRIP,				// 15
 	SCB_LPAD,				// 17
 	SCB_RPAD,				// 18
 	SCB_LPADTOUCH,			// 19

@@ -42,7 +42,10 @@ static void osd_keyboard_on_connection_ready(SCCClient* c) {
 	ControllerData * cd = sccc_get_controller_data(priv->client, priv->controller_id);
 	if(strcmp(cd->type, "deck") == 0){
 		priv->square = true;
-	}
+	} else {
+		Profile* prof = priv->slave_mapper->get_profile(priv->slave_mapper);
+		prof->sc_keyboard = TRUE;
+	} 
 
 	if (!sccc_lock(c, handle,
 					"STICK", "A", "B", "X", "Y", "C", 

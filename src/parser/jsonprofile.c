@@ -114,9 +114,74 @@ static int scbutton_to_index(SCButton b) {
 	return 0;
 }
 
+/**
+ * As above but L and RGrip are swapped
+ */
+static int scbutton_to_index_fixed(SCButton b) {
+	switch (b) {
+		case B_RPADTOUCH:
+			return 1;
+		case B_LPADTOUCH:
+			return 2;
+		case B_RPADPRESS:
+			return 3;
+		case B_LPADPRESS:
+			return 4;
+		case B_LGRIP:
+			return 5;
+		case B_RGRIP:
+			return 6;
+		case B_START:
+			return 7;
+		case B_C:
+			return 8;
+		case B_BACK:
+			return 9;
+		case B_A:
+			return 10;
+		case B_X:
+			return 11;
+		case B_B:
+			return 12;
+		case B_Y:
+			return 13;
+		case B_LB:
+			return 14;
+		case B_RB:
+			return 15;
+		case B_LT:
+			return 16;
+		case B_RT:
+			return 17;
+		case B_CPADTOUCH:
+			return 18;
+		case B_CPADPRESS:
+			return 19;
+		case B_STICKPRESS:
+			return 20;
+		case B_RSTICKPRESS:
+			return 21;
+		case B_DOTS	:
+			return 22;
+		case B_RGRIP2:
+			return 23;
+		case B_LGRIP2:
+			return 24;
+		case _SCButton_padding:
+			return 0;
+	}
+	return 0;
+}
+
 static Action* get_button(Profile* _p, SCButton b) {
 	JSONProfile* p = container_of(_p, JSONProfile, profile);
 	Action* a = p->buttons[scbutton_to_index(b)];
+	if(_p->sc_keyboard){
+		if(b == B_LGRIP)
+			a = p->buttons[scbutton_to_index_fixed(b)];
+		else if(b == B_RGRIP)
+			a = p->buttons[scbutton_to_index_fixed(b)];
+	}
 	RC_ADD(a);
 	return a;
 }
