@@ -173,6 +173,10 @@ static void set_profile(Mapper* _m, Profile* p, bool cancel_effects) {
 	m->profile = p;
 }
 
+static void reload_profile(Mapper* _m, Profile* p, bool cancel_effects, bool apply_overrides) {
+	//TODO
+}
+
 static Profile* get_profile(Mapper* _m) {
 	struct SlaveMapper* m = container_of(_m, struct SlaveMapper, mapper);
 	return m->profile;
@@ -294,6 +298,7 @@ Mapper* sccc_slave_mapper_new(SCCClient* c) {
 	
 	m->mapper.get_flags = get_flags;
 	m->mapper.set_profile = set_profile;
+	m->mapper.reload_profile = reload_profile;
 	m->mapper.get_profile = get_profile;
 	m->mapper.set_controller = NULL;
 	m->mapper.get_controller = NULL;

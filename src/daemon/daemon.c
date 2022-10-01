@@ -200,7 +200,7 @@ bool sccd_set_profile(Mapper* m, const char* filename) {
 	int err;
 	char* message;
 	Profile* current = m->get_profile(m);
-	Profile* p = scc_profile_from_json(filename, &err);
+	Profile* p = scc_profile_from_json(filename, &err, false);
 	SCCDMapper* m_ = sccd_mapper_to_sccd_mapper(m);
 	if (m_ != NULL) {
 		if (!sccd_mapper_set_profile_filename(m_, filename)) {
@@ -308,10 +308,17 @@ static bool controller_add(Controller* c) {
 	if (m != default_mapper)
 		DEBUG("(Re)using mapper %p for %s", m, c->get_description(c));
 	ASSERT(list_add(controllers, c));
-	
+
 	// Store & assign mapper
 	Mapper* m_ = sccd_mapper_to_mapper(m);
 	m_->set_controller(m_, c);
+
+	//use of override (TODO) rather than reload to avoid kb performance loss
+	if(strcmp(c->get_type(c),"deck") == 0){
+		DDEBUG("Applying overrides to deck");
+		m_->reload_profile(m_, NULL, true, true);
+	}
+
 	c->set_mapper(c, m_);
 	if (m == default_mapper)
 		DEBUG("Assigned default_mapper to %s", c->get_description(c));
@@ -378,14 +385,14 @@ static void load_default_profile(SCCDMapper* m) {
 		int count = config_get_strings(c, "recent_profiles", (const char**)&recents, 1);
 		if ((count >= 1) || (count == -2)) {
 			// -2 means more data available. 1st value is still valid in that case
-			default_profile = scc_find_profile(recents[0]);
+				default_profile = scc_find_profile(recents[0]);
 		}
 		RC_REL(c);
 	}
 	
 	int err;
 	ASSERT(default_profile != NULL);
-	Profile* p = scc_profile_from_json(default_profile, &err);
+	Profile* p = scc_profile_from_json(default_profile, &err, false);
 	if (!sccd_mapper_set_profile_filename(m, default_profile)) {
 		WARN("Failed to load profile (out of memory). Starting with no mappings.");
 		RC_REL(p);

@@ -258,7 +258,7 @@ OSDKeyboard* osd_keyboard_new(OSDKeyboardOptions* options) {
 	
 	int err;
 	char* osd_kbd_pro = scc_find_profile(".scc-osd.keyboard");
-	Profile* profile = scc_profile_from_json(osd_kbd_pro, &err);
+	Profile* profile = scc_profile_from_json(osd_kbd_pro, &err, true);
 	free(osd_kbd_pro);
 	if ((profile == NULL) || !load_keyboard_data(options->filename, priv)) {
 		RC_REL(profile);

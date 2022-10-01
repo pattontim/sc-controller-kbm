@@ -24,9 +24,14 @@
 	"trigger_right":	{ "action": "button(Keys.KEY_LEFTCTRL)" },
 
 	"stick": {
-		"action": "dpad(OSK.close(), keyboard(), button(Keys.KEY_LEFT), button(Keys.KEY_RIGHT))", 
+		"action": "dpad(button(Keys.KEY_UP), button(Keys.KEY_DOWN), button(Keys.KEY_LEFT), button(Keys.KEY_RIGHT))", 
 		"modes": { "RGRIP": { "action": "OSK.move()" } }
 	},
+
+	"deck_override_stick": {
+		"action": "dpad(button(Keys.KEY_UP), button(Keys.KEY_DOWN), button(Keys.KEY_LEFT), button(Keys.KEY_RIGHT))", 
+		"modes": { "RGRIP": { "action": "OSK.move()" } }
+	},	
 
 	"gyro": {},
 	"menus": {},

@@ -67,10 +67,12 @@ ControllerData* get_data_by_handle(struct _SCCClient* c, int handle) {
 void on_controller_event(struct _SCCClient* c, const char* controller, Tokens* tokens) {
 	uint32_t handle = sccc_get_controller_handle(&c->client, controller);
 	if (handle != 0) {
-		const char* what = iter_next(tokens);		DDEBUG("what:%s",what);
+		const char* what = iter_next(tokens);		
+		//DDEBUG("what:%s",what);
 
 		SCButton b = scc_string_to_button(what);
-		//no idea why a double inversion works
+		//no idea why a double inversion works to enable SC BT grips
+		// TODO: restore functionality to by_cable
 		if(b == B_LGRIP)
 		 	b = B_RGRIP;
 		 else if(b == B_RGRIP)

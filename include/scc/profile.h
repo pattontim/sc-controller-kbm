@@ -89,8 +89,9 @@ struct Profile {
  *  - 1 - failed to open the file
  *  - 2 - failed to decode JSON data
  *  - 3 - failed to decode profile (valid JSON, but not describing profile)
+ *  - 4 - failed to decode profile, field invalid
  */
-Profile* scc_profile_from_json(const char* filename, int* error);
+Profile* scc_profile_from_json(const char* filename, int* error, bool apply_overrides);
 
 /** Generates new empty profile. This may return NULL only if there is no memory */
 Profile* scc_make_empty_profile();

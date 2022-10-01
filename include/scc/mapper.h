@@ -31,6 +31,14 @@ struct Mapper {
 	 * For example, it should stop any active rumble.
 	 */
 	void				(*set_profile)(Mapper* m, Profile* p, bool cancel_effects);
+
+	/**
+	 * Reload profile in place from disk without regenerating other fields.
+	 * If 'cancel_effects' is true, mapper should automatically cancel
+	 * all long-running effects they may have created before profile is set.
+	 * For example, it should stop any active rumble.
+	 */
+	void				(*reload_profile)(Mapper* m, Profile* p, bool cancel_effects, bool apply_overrides);
 	/** Returns profile assigned by set_profile, without increasing its reference count */
 	Profile*			(*get_profile)(Mapper* m);
 	/**

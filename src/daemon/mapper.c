@@ -65,6 +65,29 @@ static void set_profile(Mapper* _m, Profile* p, bool cancel_effects) {
 	m->profile = p;
 }
 
+static void reload_profile(Mapper* _m, Profile* p, bool cancel_effects, bool apply_overrides) {
+	SCCDMapper* m = sccd_mapper_to_sccd_mapper(_m);
+	int err;
+	Profile* current = _m->get_profile(_m);
+	Profile* p_ = scc_profile_from_json(m->profile_filename, &err, apply_overrides);
+
+	if (p_ == NULL) {
+		WARN("Failed to reload profile.");
+		RC_REL(p_);
+		return;
+	}
+
+	p_->compress(p_);
+
+	if (sccd_is_locked_profile(current)) {
+		sccd_change_locked_profile(current, p_);
+	} else {
+		//true?
+		_m->set_profile(_m, p_, true);
+		RC_REL(p_);
+	}
+}
+
 static Profile* get_profile(Mapper* _m) {
 	SCCDMapper* m = container_of(_m, SCCDMapper, mapper);
 	return m->profile;
@@ -436,6 +459,7 @@ SCCDMapper* sccd_mapper_create() {
 	m->mapper.type = SCCD_MAPPER_TYPE;
 	m->mapper.get_flags = &get_flags;
 	m->mapper.set_profile = &set_profile;
+	m->mapper.reload_profile = &reload_profile;
 	m->mapper.get_profile = &get_profile;
 	m->mapper.set_controller = &set_controller;
 	m->mapper.get_controller = &get_controller;
@@ -481,7 +505,7 @@ static void input(Mapper* _m, ControllerInput* i) {
 		for (uint64_t i = 0; i < 32; i ++) {
 			SCButton b = 1 << i;
 			if (b & btn_add) {
-				LOG("PRESS %i", b);
+				//LOG("PRESS %i", b);
 				Action* a = m->profile->get_button(m->profile, b);
 				a->button_press(a, _m);
 			} else if (b & btn_rem) {

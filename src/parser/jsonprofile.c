@@ -19,6 +19,8 @@ static const char* PROFILE_TYPE_JSON = "json";
 #define LAST_BUTTON_INDEX 24
 #define LAST_AXIS_INDEX PST_GYRO
 #define LAST_TRIGGER_INDEX 1
+#define MAX_AXIS_KEY_LEN 15
+#define MAX_TYPE_KEY_LEN 40
 
 typedef struct {
 	Profile		profile;
@@ -278,7 +280,7 @@ static Action* decode_json_action(json_object* o) {
 }
 
 
-Profile* scc_profile_from_json(const char* filename, int* error) {
+Profile* scc_profile_from_json(const char* filename, int* error, bool apply_overrides) {
 	// Open file
 	FILE* fp = fopen(filename, "r");
 	if (fp == NULL) {
@@ -324,13 +326,25 @@ Profile* scc_profile_from_json(const char* filename, int* error) {
 		if (error != NULL) *error = 4;
 		goto scc_profile_from_json_invalid_profile;
 	}
+
+	// TODO: generalize to *_overrides
+	json_object* btn_overrides = json_object_get_object(root, "deck_btn_overrides");
+	bool overrides_applied = false;
+
 	// TODO: Convert "[LR]PAD" to "[LR]PADPRESS" here
 	for (int i=0; i<=LAST_BUTTON_INDEX; i++) {
 		if (button_names[i] == NULL) continue;
 		// This replaces b->buttons[i] value without dereferencing original
 		// value. That's generaly bad idea, but I know for sure that replaced
 		// action is non-ref-counted NoAction.
-		p->buttons[i] = decode_json_action(json_object_get_object(buttons, button_names[i]));
+
+		if(apply_overrides && btn_overrides != NULL 
+			&& json_object_get_object(btn_overrides, button_names[i]) != NULL){
+			overrides_applied = true;
+			p->buttons[i] = decode_json_action(json_object_get_object(btn_overrides, button_names[i]));
+		} else {
+			p->buttons[i] = decode_json_action(json_object_get_object(buttons, button_names[i]));
+		}
 		if (scc_action_is_none(p->buttons[i])) {
 			if ((i == scbutton_to_index(B_LPADPRESS)) || (i == scbutton_to_index(B_RPADPRESS))) {
 				// Backwards compatibility thing - old name of [LR]PADPRESS
@@ -342,15 +356,54 @@ Profile* scc_profile_from_json(const char* filename, int* error) {
 		}
 	}
 	
+	char axis_buf[MAX_AXIS_KEY_LEN + MAX_TYPE_KEY_LEN] = "";
 	for (int i=0; i<=LAST_AXIS_INDEX; i++) {
 		if (axis_names[i] == NULL) continue;
+		
 		// This replaces b->axes[i] value in same way as is done with buttons
-		p->axes[i] = decode_json_action(json_object_get_object(root, axis_names[i]));
+		p->axes[i]= decode_json_action(json_object_get_object(root, axis_names[i]));
+		if(apply_overrides){
+			memset(axis_buf,0,MAX_AXIS_KEY_LEN+MAX_TYPE_KEY_LEN);
+			json_object * axis_override = json_object_get_object(root, strcat(strcat(axis_buf, "deck_override_"), axis_names[i]));
+			if(axis_override != NULL){
+				if(json_object_numkeys(axis_override) == 0){
+					WARN("Empty axis %s action applied.", axis_names[i]);
+				}
+				overrides_applied = true;
+				p->axes[i] = decode_json_action(axis_override);
+			}
+		}
 	}
 	
 	// And again, same thing with gyro & triggers
 	p->triggers[0] = decode_json_action(json_object_get_object(root, "trigger_left"));
+	if(apply_overrides){
+		memset(axis_buf,0,MAX_AXIS_KEY_LEN+MAX_TYPE_KEY_LEN);
+		json_object * trigger_override = json_object_get_object(root, strcat(strcat(axis_buf, "deck_override_"), "trigger_left"));
+		if(trigger_override != NULL){
+			if(json_object_numkeys(trigger_override) == 0){
+				WARN("Empty trigger action applied.");
+			}
+			overrides_applied = true;
+			p->triggers[0] = decode_json_action(trigger_override);
+		}
+	}
+
 	p->triggers[1] = decode_json_action(json_object_get_object(root, "trigger_right"));
+	if(apply_overrides){	
+		memset(axis_buf,0,MAX_AXIS_KEY_LEN+MAX_TYPE_KEY_LEN);
+		json_object * trigger_override = json_object_get_object(root, strcat(strcat(axis_buf, "deck_override_"), "trigger_right"));
+		if(trigger_override != NULL){
+			if(json_object_numkeys(trigger_override) == 0){
+				WARN("Empty trigger action applied.");
+			}
+			overrides_applied = true;
+			p->triggers[1] = decode_json_action(trigger_override);
+		}
+	}
+
+	if(apply_overrides && !overrides_applied)
+		INFO("No deck overrides applied.");
 	
 	json_free_context(ctx);
 	return &p->profile;
