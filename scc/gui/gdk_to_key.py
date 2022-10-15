@@ -213,7 +213,7 @@ KEYCODE_TO_KEY = {
 }
 
 # Stuff that is missing above is auto-generated here
-names = { x.name : x for x in Keys }
+names = { x : x for x in Keys }
 
 for x in dir(Gdk):
 	if x.startswith("KEY_"):

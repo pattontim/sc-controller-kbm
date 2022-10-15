@@ -424,3 +424,33 @@ def circle_to_square(x, y):
 		raise ValueError("Invalid angle...?")
 	
 	return squared
+
+def square_to_circle(x, y):
+	"""
+	Projects coordinate in square (of length 1.0) to coordinate in circle.
+	"""
+	# Adapted from http://theinstructionlimit.com/squaring-the-thumbsticks
+	
+	# Determine the theta angle
+	angle = atan2(y, x) + PI
+	print(angle)
+	
+	squared = 0, 0
+	# Scale according to which wall we're clamping to
+	# X+ wall
+	if angle <= PId4 or angle > 7.0 * PId4:
+		squared = x / (1.0 / cos(angle)), y / (1.0 / cos(angle))
+	# Y+ wall
+	elif angle > PId4 and angle <= 3.0 * PId4:
+		squared = x / (1.0 / sin(angle)), y / (1.0 / sin(angle))
+	# X- wall
+	elif angle > 3.0 * PId4 and angle <= 5.0 * PId4:
+		squared = x / (-1.0 / cos(angle)), y / (-1.0 / cos(angle))
+	# Y- wall
+	elif angle > 5.0 * PId4 and angle <= 7.0 * PId4:
+		squared = x / (-1.0 / sin(angle)), y / (-1.0 / sin(angle))
+	else:
+		raise ValueError("Invalid angle...?")
+	
+	return squared
+

@@ -39,7 +39,12 @@ def build_action_constants():
 		rv[c] = c
 	for tpl in (Keys, Axes, Rels, SCButtons, HapticPos):
 		for x in tpl:
-			rv[x.name] = x
+			try:
+			    rv[x.name] = x
+            # handle pickled Keys (for now)
+			except AttributeError:
+			    #print(x) 
+			    rv[x] = x
 	for b in ("A", "B", "X", "Y", "START", "SELECT"):
 		name = "BTN_%s" % (b,)
 		rv[name] = getattr(Keys, name)

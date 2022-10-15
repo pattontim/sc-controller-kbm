@@ -13,7 +13,7 @@ from xml.etree import ElementTree as ET
 from scc.constants import LEFT, RIGHT, STICK, STICK_PAD_MIN, STICK_PAD_MAX
 from scc.constants import STICK_PAD_MIN_HALF, STICK_PAD_MAX_HALF, CPAD
 from scc.constants import SCButtons, ControllerFlags
-from scc.tools import point_in_gtkrect, circle_to_square, clamp
+from scc.tools import point_in_gtkrect, circle_to_square, clamp, square_to_circle
 from scc.tools import find_profile, find_button_image
 from scc.paths import get_share_path, get_config_path
 from scc.parser import TalkingActionParser
@@ -53,7 +53,7 @@ class KeyboardImage(Gtk.DrawingArea):
 	__gsignals__ = {}
 	
 	
-	def __init__(self, image):
+	def __init__(self, image, config):
 		Gtk.DrawingArea.__init__(self)
 		self.connect('size-allocate', self.on_size_allocate)
 		self.connect('draw', self.on_draw)
@@ -67,9 +67,10 @@ class KeyboardImage(Gtk.DrawingArea):
 		self.color_pressed = 1, 1, 1, 1
 		self.color_text = 1, 1, 1, 1
 		
+		self.config = config
 		self.overlay = SVGWidget(image, False)
 		self.tree = ET.fromstring(self.overlay.current_svg.encode("utf-8"))
-		SVGWidget.find_areas(self.tree, None, areas, get_colors=True)
+		SVGWidget.find_areas(self.tree, None, areas, self.config['scale'], get_colors=True)
 		
 		self._hilight = ()
 		self._pressed = ()
@@ -90,11 +91,12 @@ class KeyboardImage(Gtk.DrawingArea):
 		
 		self.buttons = [ Button(self.tree, area) for area in areas ]
 		background = SVGEditor.find_by_id(self.tree, "BACKGROUND")
-		self.set_size_request(*SVGEditor.get_size(background))
+		self.svg_background = background
+		self.set_size_request(*SVGEditor.get_size(background, self.config['scale']))
 		self.overlay.edit().keep("overlay").commit()
 		self.overlay.hilight({})
-		# open("/tmp/a.svg", "w").write(self.overlay.current_svg.encode("utf-8"))
-	
+		# overlay as seen by KB
+		#open("/tmp/a.svg", "w").write(self.overlay.current_svg.encode("utf-8"))
 	
 	def hilight(self, hilight, pressed):
 		self._hilight = hilight
@@ -117,14 +119,14 @@ class KeyboardImage(Gtk.DrawingArea):
 		self.queue_draw()
 	
 	
-	def get_limit(self, id):
+	def get_limit(self, id, scale=1.0):
 		a = SVGEditor.find_by_id(self.tree, id)
 		width, height = 0, 0
 		if not hasattr(a, "parent"): a.parent = None
 		x, y = SVGEditor.get_translation(a, absolute=True)
 		if 'width' in a.attrib:  width = float(a.attrib['width'])
 		if 'height' in a.attrib: height = float(a.attrib['height'])
-		return x, y, width, height
+		return x * scale, y * scale, width * scale, height * scale
 	
 	
 	@staticmethod
@@ -153,9 +155,17 @@ class KeyboardImage(Gtk.DrawingArea):
 			w, h, stride,
 			None
 		)
-		rv.pixels = pixels	# Has to be kept in memory
+		rv.pixels = pixels  # Has to be kept in memory
 		return rv
 	
+	@staticmethod
+	def outline_rectangle(ctx, x, y, w, h):
+		ctx.move_to(x, y)
+		ctx.line_to(x + w, y)
+		ctx.line_to(x + w, y + h)
+		ctx.line_to(x, y + h)
+		ctx.line_to(x, y)
+		ctx.stroke()	
 	
 	def get_button_image(self, x, size):
 		"""
@@ -177,8 +187,8 @@ class KeyboardImage(Gtk.DrawingArea):
 	def on_draw(self, self2, ctx):
 		ctx.select_font_face(self.font_face, 0, 0)
 		
-		ctx.set_line_width(self.LINE_WIDTH)
-		ctx.set_font_size(48)
+		ctx.set_line_width(self.LINE_WIDTH * self.config['scale'])
+		ctx.set_font_size(48 * self.config['scale'])
 		ascent, descent, height, max_x_advance, max_y_advance = ctx.font_extents()
 		
 		# Buttons
@@ -262,6 +272,58 @@ class KeyboardImage(Gtk.DrawingArea):
 				ctx.stroke()
 	
 	
+		# draw limits
+		#w = 371.04922
+		#h = 371.04922
+		#w = limit[2] - (cursor.get_allocation().width * 0.5)
+		#h = limit[3] - (cursor.get_allocation().height * 0.5)
+		
+		#clamp = lambda low, value, high : min(high, max(low, value))
+		#print('cursor', cursor.get_allocation().width, 'window', (self.get_allocation().width, self.get_allocation().height))
+		#print('------')
+				
+		# cursor = self.cursors["LEFT"]
+		# xlim_left_min = cursor.get_allocation().width * 0.5,
+		# xlim_left_max = self.get_allocation().width - cursor.get_allocation().width
+					
+		# ylim_left_min = cursor.get_allocation().height * 0.5,
+		# ylim_left_max = self.get_allocation().height - cursor.get_allocation().height
+	
+		# cursor = self.cursors["RIGHT"]
+		# xlim_right_min = cursor.get_allocation().width * 0.5,
+		# xlim_right_max = self.get_allocation().width - cursor.get_allocation().width
+		
+		# ylim_right_min = cursor.get_allocation().height * 0.5,
+		# ylim_right_max = self.get_allocation().height - cursor.get_allocation().height
+
+		ctx.set_source_rgba(*self.color_hilight)
+		#a,b,c,d = (13.05026, 32.341991, 425.33261, 329.81494)
+		#e,f,g,h = (384.22882, 38.738438, 388.67133, 323.54922)
+		#BEFORE GET LIMIT...
+		#a,b,c,d = (18, 18, 367, 367)
+		#e,f,g,h = (415, 18, 367, 367) 
+
+		#TODO only draw if config
+		a,b,c,d = self.get_limit(
+			"LIMIT_LEFT_LINEAR" if self.config['linear'] else 'LIMIT_LEFT', self.config['scale']
+			)
+		e,f,g,h = self.get_limit(
+			"LIMIT_RIGHT_LINEAR" if self.config['linear'] else 'LIMIT_RIGHT', self.config['scale']
+			)
+
+		#e,f,g,h = (384.22882, 38.738438, 388.67133, 323.54922)
+		#KeyboardImage.outline_rectangle(ctx, xlim_left_min, ylim_left_min, w, h)
+		#KeyboardImage.outline_rectangle(ctx, xlim_right_min, ylim_right_min, w, h)
+		c_half = int(25*self.config['scale']/2)
+		KeyboardImage.outline_rectangle(ctx, a, b, c-c_half, d-c_half)
+		KeyboardImage.outline_rectangle(ctx, e, f, g-c_half, h-c_half)
+
+		# draw_rectangle method
+		
+		# Overlay
+		Gdk.cairo_set_source_pixbuf(ctx, self.overlay.get_pixbuf(), 0, 0)
+		ctx.paint()
+	
 	def on_size_allocate(self, *a):
 		pass
 
@@ -305,16 +367,18 @@ class Keyboard(OSDWindow, TimerManager):
 			# Prefer image in ~/.config/scc, but load default one as fallback
 			self.kbimage = os.path.join(get_share_path(), "images", 'keyboard.svg')
 		
+		self.dpy = X.Display(hash(GdkX11.x11_get_default_xdisplay()))
+		
 		TimerManager.__init__(self)
-		OSDWindow.__init__(self, "osd-keyboard")
+		mx,my = X.get_mouse_pos(self.dpy)
+		self.config = config or Config()
+		OSDWindow.__init__(self, "osd-keyboard", position=self.get_keyboard_shifted(mx,my))
 		self.daemon = None
 		self.mapper = None
 		self.keymap = Gdk.Keymap.get_default()
 		self.keymap.connect('state-changed', self.on_keymap_state_changed)
 		Action.register_all(sys.modules['scc.osd.osk_actions'], prefix="OSK")
 		self.profile = Profile(TalkingActionParser())
-		self.config = config or Config()
-		self.dpy = X.Display(hash(GdkX11.x11_get_default_xdisplay()))
 		self.group = None
 		self.limits = {}
 		self.background = None
@@ -323,8 +387,20 @@ class Keyboard(OSDWindow, TimerManager):
 		self.cursors = {}
 		self.cursors[LEFT] = Gtk.Image.new_from_file(cursor)
 		self.cursors[LEFT].set_name("osd-keyboard-cursor")
+		scaled = self.cursors[LEFT].get_pixbuf().scale_simple(
+						self.cursors[LEFT].get_pixbuf().get_width() * self.config['scale'], 
+						self.cursors[LEFT].get_pixbuf().get_height() * self.config['scale'], 
+						GdkPixbuf.InterpType.BILINEAR
+						)
+		self.cursors[LEFT].set_from_pixbuf(scaled)
 		self.cursors[RIGHT] = Gtk.Image.new_from_file(cursor)
 		self.cursors[RIGHT].set_name("osd-keyboard-cursor")
+		scaled = self.cursors[RIGHT].get_pixbuf().scale_simple(
+						self.cursors[RIGHT].get_pixbuf().get_width() * self.config['scale'], 
+						self.cursors[RIGHT].get_pixbuf().get_height() * self.config['scale'], 
+						GdkPixbuf.InterpType.BILINEAR
+						)
+		self.cursors[RIGHT].set_from_pixbuf(scaled)
 		self.cursors[CPAD] = Gtk.Image.new_from_file(cursor)
 		self.cursors[CPAD].set_name("osd-keyboard-cursor")
 		
@@ -334,6 +410,12 @@ class Keyboard(OSDWindow, TimerManager):
 		self._hovers = { self.cursors[LEFT]: None, self.cursors[RIGHT]: None }
 		self._pressed = { self.cursors[LEFT]: None, self.cursors[RIGHT]: None }
 		self._pressed_areas = {}
+		self._prev_pos = (0,0)
+		self._toggle = False
+		self._minx = 10000
+		self._maxx = 0
+		self._miny = 10000
+		self._maxy = 0
 		
 		self.c = Gtk.Box()
 		self.c.set_name("osd-keyboard-container")
@@ -342,13 +424,20 @@ class Keyboard(OSDWindow, TimerManager):
 	
 	
 	def _create_background(self):
-		self.background = KeyboardImage(self.args.image)
+		self.background = KeyboardImage(self.args.image, self.config)
+		self.background.set_size_request( 
+			*SVGEditor.get_size(self.background.svg_background, self.config['scale']))
 		self.recolor()
 		
 		self.limits = {}
-		self.limits[LEFT]  = self.background.get_limit("LIMIT_LEFT")
-		self.limits[RIGHT] = self.background.get_limit("LIMIT_RIGHT")
-		self.limits[CPAD] = self.background.get_limit("LIMIT_CPAD")
+		self.limits[LEFT]  = self.background.get_limit("LIMIT_LEFT", self.config['scale'])
+		self.limits[RIGHT] = self.background.get_limit("LIMIT_RIGHT", self.config['scale'])
+
+		if(self.config['linear']):
+			self.limits[LEFT] = self.background.get_limit("LIMIT_LEFT_LINEAR", self.config['scale'])
+			self.limits[RIGHT] = self.background.get_limit("LIMIT_RIGHT_LINEAR", self.config['scale'])
+
+		self.limits[CPAD] = self.background.get_limit("LIMIT_CPAD", self.config['scale'])
 		self._pack()
 	
 	
@@ -561,7 +650,14 @@ class Keyboard(OSDWindow, TimerManager):
 	def show(self, *a):
 		if self.background is None:
 			self._create_background()
+
+		#inherited from Gtk.Window
+		#OSDWindow.move()
+		mx, my = X.get_mouse_pos(self.dpy)
+		mx, my = self.get_keyboard_shifted(mx, my)
+
 		OSDWindow.show(self, *a)
+		self.move(mx, my)
 		self.load_profile()
 		self.mapper = SlaveMapper(self.profile, None,
 			keyboard=b"SCC OSD Keyboard", mouse=b"SCC OSD Mouse")
@@ -591,10 +687,17 @@ class Keyboard(OSDWindow, TimerManager):
 	
 	def on_sa_cursor(self, mapper, action, x, y):
 		self.set_cursor_position(
-			x * action.speed[0],
-			y * action.speed[1],
+			(x * action.speed[0]),
+			(y * action.speed[1]),
 			self.cursors[action.side], self.limits[action.side])
-	
+			
+		# TODO release to type config
+		if(x == 0 and y == 0 and self._prev_pos != (0,0)):
+			if(self._toggle):
+				pass
+				#3self.key_from_xy(self._prev_pos[0], self._prev_pos[1])
+			self._toggle = not self._toggle
+		self._prev_pos = self.cursors[action.side].position
 	
 	def on_sa_move(self, mapper, action, x, y):
 		self._stick = x, y
@@ -603,6 +706,8 @@ class Keyboard(OSDWindow, TimerManager):
 	
 	
 	def on_sa_press(self, mapper, action, pressed):
+		# TODO release typing
+		#self._toggle = not self._toggle
 		self.key_from_cursor(self.cursors[action.side], pressed)
 	
 	
@@ -613,22 +718,40 @@ class Keyboard(OSDWindow, TimerManager):
 		if cursor not in self._hovers: return
 		w = limit[2] - (cursor.get_allocation().width * 0.5)
 		h = limit[3] - (cursor.get_allocation().height * 0.5)
+
+		# TODO in svg? 
+		#if(self.config['linear']):
+		#    w = 371.04922
+		#    h = 371.04922
+		
 		x = x / float(STICK_PAD_MAX)
 		y = y / float(STICK_PAD_MAX) * -1.0
 		
 		x, y = circle_to_square(x, y)
+		x,y = clamp(-1, x, 1), clamp(-1, y, 1)
+		above = True if abs(x) > 1 or abs(y) > 1 else False
+
+		# TODO: re-use if deadzone scaling
+		#x = clamp(
+			# cursor.get_allocation().width * 0.5,
+			# (limit[0] + w * 0.5) + x * w * 0.5,
+			# self.get_allocation().width - cursor.get_allocation().width
+			# )
+		x = limit[0] + (w * 0.5) + x * w * 0.5
 		
-		x = clamp(
-			cursor.get_allocation().width * 0.5,
-			(limit[0] + w * 0.5) + x * w * 0.5,
-			self.get_allocation().width - cursor.get_allocation().width
-			)
+		#y = clamp(
+			# cursor.get_allocation().height * 0.5,
+			# (limit[1] + h * 0.5) + y * h * 0.5,
+			# self.get_allocation().height - cursor.get_allocation().height
+			# )
+		y = limit[1] + (h * 0.5) + y * h * 0.5
 		
-		y = clamp(
-			cursor.get_allocation().height * 0.5,
-			(limit[1] + h * 0.5) + y * h * 0.5,
-			self.get_allocation().height - cursor.get_allocation().height
-			)
+		# TODO hardcoded, spurious inputs
+		if(not above and x != 216.52461 and cursor != self.cursors["RIGHT"]):
+			self._minx = min(self._minx, x)
+			self._maxx = max(self._maxx, x)
+			self._miny = min(self._miny, y)
+			self._maxy = max(self._maxy, y)
 		
 		cursor.position = int(x), int(y)
 		self.f.move(cursor,
@@ -655,6 +778,17 @@ class Keyboard(OSDWindow, TimerManager):
 			set([ a for a in self._pressed_areas.values() if a ])
 		)
 	
+	def get_keyboard_shifted(self, mx, my):
+		# TODO not hardcode keyboard size
+		if (my > 540):
+			mx2 = mx-(800*self.config['scale']) if mx-(800*self.config['scale']) > 0  else 0
+			my2 = my-(402*self.config['scale'])
+			return mx2,my2
+		else: 
+			#TODO fix snap to LHS
+			mx2 = mx-(800*self.config['scale']) if mx-(800*self.config['scale']) > 0 else 0 
+			my2 = my
+			return mx2,my2
 	
 	def _move_window(self, *a):
 		"""
@@ -694,6 +828,15 @@ class Keyboard(OSDWindow, TimerManager):
 		if not self.timer_active('update'):
 			self.timer('update', 0.01, self.update_background)
 
+	def key_from_xy(self, x, y):
+		for button in self.background.buttons:
+			if button.contains(x, y):
+				if button.name.startswith("KEY_") and hasattr(Keys, button.name):
+					key = getattr(Keys, button.name)
+					self.mapper.keyboard.pressEvent([ key ])
+					#print('pressing')
+					self.mapper.keyboard.releaseEvent([ key ])
+				break
 
 def main():
 	import gi

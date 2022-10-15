@@ -110,6 +110,8 @@ class Config(object):
 		"windows_opacity": 0.95,
 		# See drivers/sc_dongle.py, read_serial method
 		"ignore_serials" : True,
+		"linear": False,
+		"scale": 1.0,
 	}
 	
 	CONTROLLER_DEFAULTS = {

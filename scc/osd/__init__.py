@@ -36,7 +36,7 @@ class OSDWindow(Gtk.Window):
 	EPILOG = ""
 	css_provider = None			# Used by staticmethods
 	
-	def __init__(self, wmclass):
+	def __init__(self, wmclass, position=(20,-20)):
 		Gtk.Window.__init__(self)
 		OSDWindow._apply_css(Config())
 		
@@ -45,7 +45,7 @@ class OSDWindow(Gtk.Window):
 			epilog=self.EPILOG)
 		self._add_arguments()
 		self.exit_code = -1
-		self.position = (20, -20)
+		self.position = position
 		self.mainloop = None
 		self._controller = None
 		self.set_name(wmclass)
@@ -137,7 +137,9 @@ class OSDWindow(Gtk.Window):
 			log.error(traceback.format_exc())
 			return False
 		del self.argparser
-		self.position = (self.args.x, self.args.y)
+		#TODO another way to detect default
+		if(self.position == (20,-20)):
+			self.position = (self.args.x, self.args.y)
 		if self.args.d:
 			set_logging_level(True, True)
 		return True
@@ -201,6 +203,8 @@ class OSDWindow(Gtk.Window):
 		
 		self.move(x, y)
 		Gtk.Window.show(self)
+		#TODO use config
+		Gtk.Window.set_opacity(self, 0.5)
 		self.make_window_clicktrough()
 	
 	

@@ -29,30 +29,77 @@ from scc.lib.libusb1 import timeval
 from scc.tools import find_library
 from scc.cheader import defines
 from scc.lib import IntEnum
+import cPickle
 
 UNPUT_MODULE_VERSION = 9
 
+# Faster than IntEnum, see: https://github.com/kozec/sc-controller/issues/663 
+class EnumDict(dict):
+    """dot.notation access to dictionary attributes"""
+    #__getattr__ = dict.get
+    def __getattr__(self, name):
+        return dict.get(self, name)
+    __setattr__ = dict.__setitem__
+    __delattr__ = dict.__delitem__
+    PROFILE_KEYS = ""
+    name = ""
+
+class KeysDict(EnumDict):
+    name = "Keys"
+class KeysOnlyDict(EnumDict):
+	name = "KeysOnly"
+class RelsDict(EnumDict):
+	name = "Rels"
+class AxesDict(EnumDict):
+	name = "Axes"
+
+# TODO more elegant solution needed
+# generates CHEADERS once, saving a couple hundred ms every run
+# 
 # Get All defines from linux headers
-if os.path.exists('/usr/include/linux/input-event-codes.h'):
-	CHEAD = defines('/usr/include', 'linux/input-event-codes.h')
-elif os.path.exists(os.path.split(__file__)[0] + '/input-event-codes.h'):
-	CHEAD = defines(os.path.split(__file__)[0], 'input-event-codes.h')
+#if os.path.exists('/usr/include/linux/input-event-codes.h'):
+#	CHEAD = defines('/usr/include', 'linux/input-event-codes.h')
+#elif os.path.exists(os.path.split(__file__)[0] + '/input-event-codes.h'):
+#	CHEAD = defines(os.path.split(__file__)[0], 'input-event-codes.h')
+#else:
+#	CHEAD = defines('/usr/include', 'linux/input.h')
+
+# TODO EAFP
+if os.path.exists('./cpath.p'):
+	f = open('cpath.p')
+	CHEAD = cPickle.load(f)
+	f.close()
 else:
-	CHEAD = defines('/usr/include', 'linux/input.h')
+	f = open('cpath.p','w')
+	# Get All defines from linux headers
+	if os.path.exists('/usr/include/linux/input-event-codes.h'):
+		CHEAD = defines('/usr/include', 'linux/input-event-codes.h')
+	elif os.path.exists(os.path.split(__file__)[0] + '/input-event-codes.h'):
+		CHEAD = defines(os.path.split(__file__)[0], 'input-event-codes.h')
+	else:
+		CHEAD = defines('/usr/include', 'linux/input.h')
+
+	cPickle.dump(CHEAD, f)
+	f.close()
 
 MAX_FEEDBACK_EFFECTS = 4
 
 # Keys enum contains all keys and button from linux/uinput.h (KEY_* BTN_*)
-Keys = IntEnum('Keys', {i: CHEAD[i] for i in CHEAD.keys() if (i.startswith('KEY_') or
+#Keys = IntEnum('Keys', {i: CHEAD[i] for i in CHEAD.keys() if (i.startswith('KEY_') or
+#															i.startswith('BTN_'))})
+Keys = KeysDict({i: CHEAD[i] for i in CHEAD.keys() if (i.startswith('KEY_') or
 															i.startswith('BTN_'))})
 # Keys enum contains all keys and button from linux/uinput.h (KEY_* BTN_*)
-KeysOnly = IntEnum('KeysOnly', {i: CHEAD[i] for i in CHEAD.keys() if i.startswith('KEY_')})
+#KeysOnly = IntEnum('KeysOnly', {i: CHEAD[i] for i in CHEAD.keys() if i.startswith('KEY_')})
+KeysOnly = KeysOnlyDict({i: CHEAD[i] for i in CHEAD.keys() if i.startswith('KEY_')})
 
 # Axes enum contains all axes from linux/uinput.h (ABS_*)
-Axes = IntEnum('Axes', {i: CHEAD[i] for i in CHEAD.keys() if i.startswith('ABS_')})
+#Axes = IntEnum('Axes', {i: CHEAD[i] for i in CHEAD.keys() if i.startswith('ABS_')})
+Axes = AxesDict({i: CHEAD[i] for i in CHEAD.keys() if i.startswith('ABS_')})
 
 # Rels enum contains all rels from linux/uinput.h (REL_*)
-Rels = IntEnum('Rels', {i: CHEAD[i] for i in CHEAD.keys() if i.startswith('REL_')})
+#Rels = IntEnum('Rels', {i: CHEAD[i] for i in CHEAD.keys() if i.startswith('REL_')})
+Rels = RelsDict({i: CHEAD[i] for i in CHEAD.keys() if i.startswith('REL_')})
 
 # Scan codes for each keys (taken from a logitech keyboard)
 Scans = {

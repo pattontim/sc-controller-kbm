@@ -133,6 +133,10 @@ class GlobalSettings(Editor, UserDataManager, ComboSetter):
 				.set_active(self.app.config['gui']['autokill_daemon']))
 		(self.builder.get_object("cbNewRelease")
 				.set_active(self.app.config['gui']['news']['enabled']))
+		(self.builder.get_object("cbLinearKeyboardMode")
+				.set_active(self.app.config['linear']))
+		(self.builder.get_object("cbKeyboardScale")
+				.set_value(self.app.config['scale']))
 		self._recursing = False
 		
 		try:
@@ -337,6 +341,8 @@ class GlobalSettings(Editor, UserDataManager, ComboSetter):
 		self.app.config['gui']['minimize_on_start'] = self.builder.get_object("cbMinimizeOnStart").get_active()
 		self.app.config['gui']['autokill_daemon'] = self.builder.get_object("cbAutokillDaemon").get_active()
 		self.app.config['gui']['news']['enabled'] = self.builder.get_object("cbNewRelease").get_active()
+		self.app.config['linear'] = self.builder.get_object("cbLinearKeyboardMode").get_active()
+		self.app.config['scale'] = round(self.builder.get_object("cbKeyboardScale").get_value(), 1)
 		
 		# Save
 		self.app.save_config()
@@ -346,6 +352,13 @@ class GlobalSettings(Editor, UserDataManager, ComboSetter):
 		if self._recursing: return
 		self.save_config()
 	
+	def on_cbLinear_toggled(self, cb):
+		if self._recursing: return
+		self.save_config()
+
+	def on_cbScale_moved(self, cb, data):
+		if self._recursing: return
+		self.save_config()
 	
 	def on_btRestartEmulation_clicked(self, *a):
 		rvRestartWarning = self.builder.get_object("rvRestartWarning")

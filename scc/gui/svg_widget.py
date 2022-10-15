@@ -7,6 +7,7 @@ Also supports clicking on areas defined in SVG image.
 """
 from __future__ import unicode_literals
 from scc.tools import _
+from scc.config import Config
 
 from gi.repository import Gtk, Gdk, GObject, GdkPixbuf, Rsvg
 from xml.etree import ElementTree as ET
@@ -32,7 +33,7 @@ class SVGWidget(Gtk.EventBox):
 	}
 	
 	
-	def __init__(self, filename, init_hilighted=True):
+	def __init__(self, filename, init_hilighted=True, config=None):
 		Gtk.EventBox.__init__(self)
 		self.cache = OrderedDict()
 		self.areas = []
@@ -41,6 +42,7 @@ class SVGWidget(Gtk.EventBox):
 		self.connect("button-press-event", self.on_mouse_click)
 		self.set_events(Gdk.EventMask.POINTER_MOTION_MASK | Gdk.EventMask.BUTTON_PRESS_MASK)
 		
+		self.config = config or Config()
 		self.size_override = None
 		self.image_width = 1
 		self.image_height = 1
@@ -67,7 +69,7 @@ class SVGWidget(Gtk.EventBox):
 		hovering.
 		"""
 		tree = ET.fromstring(self.current_svg.encode("utf-8"))
-		SVGWidget.find_areas(tree, None, self.areas)
+		SVGWidget.find_areas(tree, None, self.areas, self.config['scale'])
 		self.image_width =  float(tree.attrib["width"])
 		self.image_height = float(tree.attrib["height"])
 	
@@ -121,7 +123,7 @@ class SVGWidget(Gtk.EventBox):
 			return self.areas
 		lst = []
 		tree = ET.fromstring(self.current_svg.encode("utf-8"))
-		SVGWidget.find_areas(tree, None, lst, prefix=prefix)
+		SVGWidget.find_areas(tree, None, lst, self.config['scale'], prefix=prefix)
 		return lst
 	
 	
@@ -138,7 +140,7 @@ class SVGWidget(Gtk.EventBox):
 	
 	
 	@staticmethod
-	def find_areas(xml, parent_transform, areas, get_colors=False, prefix="AREA_"):
+	def find_areas(xml, parent_transform, areas, scale, get_colors=False, prefix="AREA_"):
 		"""
 		Recursively searches throught XML for anything with ID of 'AREA_SOMETHING'
 		"""
@@ -148,7 +150,7 @@ class SVGWidget(Gtk.EventBox):
 				SVGEditor.parse_transform(child))
 			if str(child.attrib.get('id')).startswith(prefix):
 				# log.debug("Found SVG area %s", child.attrib['id'][5:])
-				a = Area(child, child_transform)
+				a = Area(child, child_transform, scale)
 				if get_colors:
 					a.color = None
 					if 'style' in child.attrib:
@@ -157,7 +159,7 @@ class SVGWidget(Gtk.EventBox):
 							a.color = SVGWidget.color_to_float(style['fill'])
 				areas.append(a)
 			else:
-				SVGWidget.find_areas(child, child_transform, areas, get_colors=get_colors, prefix=prefix)
+				SVGWidget.find_areas(child, child_transform, areas, scale, get_colors=get_colors, prefix=prefix)
 	
 	
 	def get_rect_area(self, element):
@@ -217,7 +219,8 @@ class SVGWidget(Gtk.EventBox):
 			if self.size_override:
 				w, h = self.size_override
 				self.cache[cache_id] = svg.get_pixbuf().scale_simple(
-						w, h, GdkPixbuf.InterpType.BILINEAR)
+						#draw fast
+						w, h, GdkPixbuf.InterpType.NEAREST)
 			else:
 				self.cache[cache_id] = svg.get_pixbuf()
 		
@@ -239,13 +242,14 @@ class Area:
 		"MINUSHALF", "PLUSHALF", "KEY" )
 	
 	""" Basicaly just rectangle with name """
-	def __init__(self, element, transform):
+	def __init__(self, element, transform, scale=1.0):
 		self.name = element.attrib['id'].split("_")[1]
 		if self.name in Area.SPECIAL_CASES:
 			self.name = "_".join(element.attrib['id'].split("_")[1:3])
 		self.x, self.y = SVGEditor.get_translation(transform)
-		self.w = float(element.attrib.get('width', 0))
-		self.h = float(element.attrib.get('height', 0))
+		self.x, self.y = self.x*scale, self.y*scale
+		self.w = float(element.attrib.get('width', 0))*scale
+		self.h = float(element.attrib.get('height', 0))*scale
 	
 	
 	def contains(self, x, y):
@@ -567,13 +571,13 @@ class SVGEditor(object):
 	
 	
 	@staticmethod
-	def get_size(elm):
+	def get_size(elm, scale=1.0):
 		width, height = 1, 1
 		if 'width' in elm.attrib:
 			width = float(elm.attrib['width'])
 		if 'height' in elm.attrib:
 			height = float(elm.attrib['height'])
-		return width, height
+		return width * scale, height * scale
 	
 	
 	@staticmethod
