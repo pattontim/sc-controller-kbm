@@ -315,7 +315,7 @@ static bool controller_add(Controller* c) {
 
 	//use of override (TODO) rather than reload to avoid kb performance loss
 	if(strcmp(c->get_type(c),"deck") == 0){
-		DDEBUG("Applying overrides to deck");
+		DEBUG("Applying overrides to deck");
 		m_->reload_profile(m_, NULL, true, true);
 	}
 
