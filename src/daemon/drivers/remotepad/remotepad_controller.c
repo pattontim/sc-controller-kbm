@@ -55,6 +55,11 @@ static void remotepad_set_mapper(Controller* c, Mapper* mapper) {
 	pad->mapper = mapper;
 }
 
+static Mapper* remotepad_get_mapper(Controller* c) {
+	RemotePad* pad = container_of(c, RemotePad, controller);
+	return pad->mapper;
+}
+
 static void remotepad_turnoff(Controller* c) {
 	// Here is the thing: There is no way to actually turn off remote pad
 	// What this does instead if "banning" IP associated with controller
@@ -106,6 +111,7 @@ RemotePad* remotepad_new(Daemon* daemon, const char* address) {
 	pad->controller.get_type = &remotepad_get_type;
 	pad->controller.get_description = &remotepad_get_description;
 	pad->controller.set_mapper = &remotepad_set_mapper;
+	pad->controller.get_mapper = &remotepad_get_mapper;
 	pad->controller.turnoff = &remotepad_turnoff;
 	pad->controller.set_gyro_enabled = NULL;
 	pad->controller.get_gyro_enabled = NULL;

@@ -71,6 +71,11 @@ void gc_set_mapper(Controller* c, Mapper* mapper) {
 	gc->mapper = mapper;
 }
 
+Mapper* gc_get_mapper(Controller* c) {
+	GenericController* gc = get_gc_from_controller_instance(c);
+	return gc->mapper;
+}
+
 void gc_turnoff(Controller* c) {
 }
 

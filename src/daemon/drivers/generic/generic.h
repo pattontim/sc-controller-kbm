@@ -84,6 +84,9 @@ const char* gc_get_id(Controller* c);
 const char* gc_get_description(Controller* c);
 /** Controller.set_mapper callback */
 void gc_set_mapper(Controller* c, Mapper* mapper);
+/** Controller.get_mapper callback */
+// SUS
+Mapper* gc_get_mapper(Controller* c);
 /** Controller.turnoff callback */
 void gc_turnoff(Controller* c);
 

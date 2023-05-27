@@ -85,6 +85,7 @@ static void osd_keyboard_on_event(SCCClient* c, uint32_t handle, SCButton button
 }
 
 static gboolean osd_keyboard_on_data_ready(GIOChannel* source, GIOCondition condition, gpointer _kbd) {
+	// TODO SUS, handle disconnect
 	OSDKeyboard* kbd = OSD_KEYBOARD(_kbd);
 	OSDKeyboardPrivate* priv = G_TYPE_INSTANCE_GET_PRIVATE(kbd, OSD_KEYBOARD_TYPE, OSDKeyboardPrivate);
 	const char* message = sccc_recieve(priv->client);
@@ -177,11 +178,17 @@ static bool osd_keyboard_sa_handler(Mapper* m, unsigned int sa_action_type, void
 	if (data->keyword == KW_OSK_CURSOR) {
 		AxisValue* values = (AxisValue*)(data->data);
 		osd_keyboard_set_cursor_position(kbd, values[0], values[1], values[2]);
+		// TODO press on change
 	} else if (data->keyword == KW_OSK_PRESS) {
 		AxisValue* values = (AxisValue*)(data->data);
 		osd_keyboard_set_cursor_pressed(m, kbd, values[0], values[1]);
 	} else if (data->keyword == KW_OSK_CLOSE) {
-		// TODO: Closing when called from osd daemon
+		DDEBUG("TODO branch");
+		// TODO: gracefully close connection with daemon
+
+		OSDKeyboardPrivate* priv = G_TYPE_INSTANCE_GET_PRIVATE(kbd, OSD_KEYBOARD_TYPE, OSDKeyboardPrivate);
+		// TODO find equivalent close path in python!
+		priv->slave_mapper->release_virtual_buttons(priv->slave_mapper);
 		exit(0);
 	}
 	return false;

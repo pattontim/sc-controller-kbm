@@ -50,10 +50,20 @@ struct SCCDMapper {
 	uint8_t				keys[KEY_CNT];
 };
 
+struct RepeatTimeout {
+	monotime_t start;
+	Keycode keycode;
+	struct SCCDMapper* mapper;
+	bool bluetooth;
+};
+
 static void input(Mapper* _m, ControllerInput* i);
 
 static const char* SCCD_MAPPER_TYPE = "SCCD";
 
+#define KEY_REPEAT_DELAY 250
+#define KEY_REPEAT_INTERVAL 33
+#define KEY_REPEAT_TIMEOUT 25000
 
 static void set_profile(Mapper* _m, Profile* p, bool cancel_effects) {
 	SCCDMapper* m = container_of(_m, SCCDMapper, mapper);
@@ -120,8 +130,8 @@ static void haptic_effect(Mapper* _m, HapticData* hdata) {
 
 void sccd_mapper_deallocate(SCCDMapper* m) {
 	if (m->profile != NULL) RC_REL(m->profile);
-	free(m);
 	DDEBUG("Unloaded mapper 0x%p", m);
+	free(m);
 }
 
 Mapper* sccd_mapper_to_mapper(SCCDMapper* m) {
@@ -149,11 +159,69 @@ inline static VirtualDevice* device_for_button(SCCDMapper* m, Keycode b) {
 	return m->keyboard;
 }
 
+static bool repeat_pressed_timer(RepeatTimeout* r) {
+	if(r == NULL || r->mapper == NULL || r->mapper->keys[r->keycode] == 0) goto end_timer;
+
+	monotime_t now = mono_time_ms();
+
+	if((now - (r->start)) > KEY_REPEAT_TIMEOUT) goto cancel_timer;
+
+	int i = r->keycode;
+	// DDEBUG("Keystate for %d: %d", i, r->mapper->keys[i]);
+	// DDEBUG("time since start: %d", now - (r->start));
+
+	// ((i >= 103 && i <= 108) || i == 14 || i == 57  )
+	if(((now - (r->start)) > KEY_REPEAT_DELAY) && r->mapper->keys[i] > 0 && !(r->bluetooth && isascii(i))
+		// enter may be problematically held down
+		&& i != KEY_ENTER) {
+		// DDEBUG("Keystate for %d: %d", i, r->mapper->keys[i]);
+		int b = i;
+		VirtualDevice* d = device_for_button(r->mapper, b);
+		scc_virtual_device_key_press(d, b);
+	}
+	return TRUE;
+
+cancel_timer:
+	DDEBUG("Cancel timer after held for %d ms", now - (r->start));
+	goto end_timer;
+end_timer:
+	DDEBUG("End timer");
+	free(r);
+	return FALSE;
+}
+
+void repeat_pressed_loop(Mapper* _m, void * r){
+	if(repeat_pressed_timer((RepeatTimeout*)r)){
+		_m->schedule( _m,KEY_REPEAT_INTERVAL, (MapperScheduleCallback)repeat_pressed_loop, r);
+	} else {
+		DDEBUG("g_timer replacement ended.");
+	}
+}
+
+static void register_keystate_repeat(Mapper* _m, Keycode b) {
+	struct SCCDMapper* m = container_of(_m, struct SCCDMapper, mapper);
+	// not many keys pressed at once
+	RepeatTimeout * r = malloc(sizeof(struct RepeatTimeout));
+	memset(r, 0, sizeof(struct RepeatTimeout));
+	r->start = mono_time_ms();
+	r->keycode = b;
+	r->mapper = m;
+	// r->bluetooth = strcmp(_m->get_controller(_m)->get_type(_m->get_controller(_m)), "bluetooth") == 0;
+	r->bluetooth = false;
+	// g_timeout_add(KEY_REPEAT_INTERVAL, repeat_pressed_timer, r);
+	m->mapper.schedule( _m,KEY_REPEAT_INTERVAL, (MapperScheduleCallback)repeat_pressed_loop, r);
+	// schedule( _m,KEY_REPEAT_INTERVAL, (MapperScheduleCallback)repeat_pressed_loop, r);
+}
+
 static void key_press(Mapper* _m, Keycode b, bool release_press) {
 	SCCDMapper* m = container_of(_m, SCCDMapper, mapper);
 	VirtualDevice* d = device_for_button(m, b);
 	if (m->keys[b] == 0) {
 		scc_virtual_device_key_press(d, b);
+#ifdef _WIN32
+		if(b != BTN_LEFT && b != BTN_RIGHT)
+			register_keystate_repeat(_m, b);
+#endif
 	} else if (release_press) {
 		scc_virtual_device_key_release(d, b);
 		scc_virtual_device_key_press(d, b);
@@ -195,6 +263,17 @@ static bool is_virtual_key_pressed(Mapper* _m, Keycode key) {
 	SCCDMapper* m = container_of(_m, SCCDMapper, mapper);
 	if ((key < 0) || (key > KEY_CNT)) return false;
 	return m->keys[key] > 0;
+}
+
+static void release_virtual_buttons(Mapper* _m) {
+	SCCDMapper* m = container_of(_m, SCCDMapper, mapper);
+	for (int i = 0; i < KEY_CNT; i++) {
+		if (m->keys[i] > 0) {
+			m->keys[i] = 0;
+			VirtualDevice* d = device_for_button(m, i);
+			scc_virtual_device_key_release(d, i);
+		}
+	}
 }
 
 static bool was_pressed(Mapper* _m, SCButton button) {
@@ -364,6 +443,7 @@ static bool special_action(Mapper* m, unsigned int sa_action_type, void* sa_data
 		sa_menu((SAMenuActionData*)sa_data);
 		return true;
 	case SAT_KEYBOARD: {
+		m->release_virtual_buttons(m);
 		char* scc_osd_keyboard = scc_find_binary("scc-osd-keyboard");
 		if (scc_osd_keyboard == NULL) {
 			LERROR("Could not find 'scc-osd-keyboard'");
@@ -473,7 +553,7 @@ SCCDMapper* sccd_mapper_create() {
 	m->mapper.is_pressed = &is_pressed;
 	m->mapper.was_pressed = &was_pressed;
 	m->mapper.is_virtual_key_pressed = &is_virtual_key_pressed;
-	m->mapper.release_virtual_buttons = NULL;
+	m->mapper.release_virtual_buttons = &release_virtual_buttons;
 	m->mapper.reset_gyros = NULL;
 	m->mapper.special_action = &special_action;
 	m->mapper.haptic_effect = &haptic_effect;

@@ -84,8 +84,7 @@ void sccd_on_client_command(Client* client, char* buffer, size_t len) {
 			FOREACH(Controller*, c, it) {
 				if (strcmp(c->get_id(c), id) == 0) {
 					iter_free(it);
-					// TODO: Actually do something
-					// client.mapper = c.get_mapper()
+					client->mapper = c->get_mapper(c);	
 					return send_ok(client, tokens);
 				}
 			}

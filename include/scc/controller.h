@@ -12,6 +12,7 @@ typedef struct Controller Controller;
 typedef struct ControllerInput ControllerInput;
 typedef struct ControllerData ControllerData;
 typedef struct Mapper Mapper;
+typedef struct RepeatTimeout RepeatTimeout;
 typedef struct HapticData HapticData;
 
 #define KEY_INVALID 0
@@ -99,6 +100,10 @@ struct Controller {
 	 * should not send any input events.
 	 */
 	void				(*set_mapper)(Controller* c, Mapper* m);
+	/**
+	 * Returns Mapper for this controller. May return NULL if no mapper is set.
+	 */
+	Mapper*				(*get_mapper)(Controller* c);
 };
 
 typedef struct ControllerData {

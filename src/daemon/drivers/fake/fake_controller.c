@@ -36,6 +36,11 @@ static void fakegamepad_set_mapper(Controller* c, Mapper* mapper) {
 	pad->mapper = mapper;
 }
 
+static Mapper* fakegamepad_get_mapper(Controller* c) {
+	FakeGamepad* pad = container_of(c, FakeGamepad, controller);
+	return pad->mapper;
+}
+
 static void fakegamepad_turnoff(Controller* c) {
 	LOG("Turning off fake gamepad (not really)");
 }
@@ -56,6 +61,7 @@ FakeGamepad* fakegamepad_new(Daemon* daemon) {
 	pad->controller.get_type = &fakegamepad_get_type;
 	pad->controller.get_description = &fakegamepad_get_description;
 	pad->controller.set_mapper = &fakegamepad_set_mapper;
+	pad->controller.get_mapper = &fakegamepad_get_mapper;
 	pad->controller.turnoff = &fakegamepad_turnoff;
 	pad->controller.set_gyro_enabled = NULL;
 	pad->controller.get_gyro_enabled = NULL;

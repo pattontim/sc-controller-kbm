@@ -18,6 +18,7 @@ static const char* get_description(Controller* c);
 static const char* get_type(Controller* c);
 static const char* get_id(Controller* c);
 static void set_mapper(Controller* c, Mapper* m);
+static Mapper* get_mapper(Controller* c);
 static void set_gyro_enabled(Controller* c, bool enabled);
 static bool get_gyro_enabled(Controller* c);
 static void haptic_effect(Controller* c, HapticData* hdata);
@@ -96,6 +97,7 @@ SCController* create_usb_controller(Daemon* daemon, InputDevice* dev, SCControll
 	sc->controller.turnoff = NULL;
 	sc->controller.flush = &flush;
 	sc->controller.set_mapper = &set_mapper;
+	sc->controller.get_mapper = &get_mapper;
 	sc->controller.set_gyro_enabled = &set_gyro_enabled;
 	sc->controller.get_gyro_enabled = &get_gyro_enabled;
 	// Main difference between dongle-bound and wired controller is that dongle-bound
@@ -136,6 +138,11 @@ static const char* get_description(Controller* c) {
 static void set_mapper(Controller* c, Mapper* m) {
 	SCController* sc = container_of(c, SCController, controller);
 	sc->mapper = m;
+}
+
+static Mapper* get_mapper(Controller* c) {
+	SCController* sc = container_of(c, SCController, controller);
+	return sc->mapper;
 }
 
 static void	set_gyro_enabled(Controller* c, bool enabled) {

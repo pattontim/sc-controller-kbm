@@ -69,7 +69,9 @@ static void menuitem_free(MenuItem* i) {
 
 void scc_menudata_free(MenuData* _dt) {
 	struct _MenuData* dt = container_of(_dt, struct _MenuData, menudata);
-	// TODO: Deallocate items
+	for (size_t i = 0; i < list_len(dt->items); i++) {
+		menuitem_free(list_get(dt->items, i));
+	}
 	list_free(dt->items);
 	free(dt);
 }

@@ -149,8 +149,17 @@ uint32_t sccc_get_controller_handle(SCCClient* _c, const char* id) {
 	struct _SCCClient* c = container_of(_c, struct _SCCClient, client);
 	// Not using Iterator here to avoid need to allocate it
 	if (id == NULL) {
-		if (list_len(c->controllers) > 0)
+		if (list_len(c->controllers) > 0){
+			//pref sc over deck
+			FOREACH_IN(ControllerData*, cd, c->controllers) {
+				if (strncmp(cd->id, "sc",  2) == 0) {
+					// DDEBUG("sc controller found, returning handle %d",cd->handle);
+					return cd->handle;
+				}
+			}
+			// DDEBUG("no sc controller found, returning first handle %d",c->controllers->items[0]->handle);
 			return c->controllers->items[0]->handle;
+		}
 	} else {
 		FOREACH_IN(ControllerData*, cd, c->controllers) {
 			if (strcmp(cd->id, id) == 0) {
@@ -166,8 +175,14 @@ ControllerData * sccc_get_controller_data(SCCClient* _c, const char* id) {
 	struct _SCCClient* c = container_of(_c, struct _SCCClient, client);
 	// Not using Iterator here to avoid need to allocate it
 	if (id == NULL) {
-		if (list_len(c->controllers) > 0)
+		if (list_len(c->controllers) > 0){
+			FOREACH_IN(ControllerData*, cd, c->controllers) {
+				if (strncmp(cd->id, "sc",  2) == 0) {
+					return cd;
+				}
+			}
 			return c->controllers->items[0];
+		}
 	} else {
 		FOREACH_IN(ControllerData*, cd, c->controllers) {
 			if (strcmp(cd->id, id) == 0) {

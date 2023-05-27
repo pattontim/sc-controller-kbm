@@ -184,6 +184,19 @@ typedef struct VirtualDevice VirtualDevice;
 
 typedef bool (*sccc_sa_handler)(Mapper* mapper, unsigned int sa_action_type, void* sa_data);
 
+/* 
+ * Create timer data that will repeat keypresses for given button.
+ * It is assumed not many timers will be created at once 
+ * Must be deallocated after use.
+*/
+RepeatTimeout* create_repeat_timeout(Mapper* _m, Keycode b);
+
+bool print_mapper_keystate(Mapper* _m);
+
+bool repeat_all_pressed(Mapper* mapper);
+
+bool repeat_pressed_timer(RepeatTimeout* r);
+
 /**
  * Attaches virtual devices to slave mapper. Either of devices (or both) may be NULL.
  */

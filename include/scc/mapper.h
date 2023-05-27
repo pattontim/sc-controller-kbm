@@ -10,6 +10,7 @@
 #include <stdint.h>
 
 typedef struct Mapper Mapper;
+typedef struct RepeatTimer RepeatTimer;
 typedef struct Profile Profile;
 typedef void (*MapperScheduleCallback)(Mapper* m, void* userdata);
 typedef uintptr_t TaskID;

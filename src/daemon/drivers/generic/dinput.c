@@ -192,6 +192,7 @@ static void open_device(Daemon* d, const InputDeviceData* idev, Config* ccfg, co
 	di->controller.get_type = dinput_get_type;
 	di->controller.get_description = gc_get_description;
 	di->controller.set_mapper = gc_set_mapper;
+	di->controller.get_mapper = gc_get_mapper;
 	di->controller.turnoff = gc_turnoff;
 	di->controller.set_gyro_enabled = NULL;
 	di->controller.get_gyro_enabled = NULL;

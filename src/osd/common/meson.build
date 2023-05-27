@@ -17,6 +17,7 @@ osd_lib = shared_library('scc-osd',
 		# dependency('glib-2.0', version: '>=2.56.0'),
 		
 		# TODO: Re-enable cairo & gio for OSK
+		# TODO reconsider the need for gio
 		# meson.get_compiler('c').find_library('cairo', dirs: ['/usr/local/lib']),
 		# meson.get_compiler('c').find_library('gio-2.0', dirs: ['/usr/local/lib']),
 	] + platform_dependent_deps,

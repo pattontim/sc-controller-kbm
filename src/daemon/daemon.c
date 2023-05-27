@@ -253,15 +253,17 @@ bool sccd_set_profile(Mapper* m, const char* filename) {
 			if mapper.get_controller():
 				log.debug("Turning gyrosensor ON")
 				mapper.get_controller().set_gyro_enabled(True)
-		# Cancel everything
+	# Cancel everything -> call cancel and use structs to iter
 		mapper.cancel_all()
-		# Release all buttons
-		mapper.release_virtual_buttons()
+	*/
+	// Release all buttons
+	m->release_virtual_buttons(m);
+	/* TODO: AND all of this
 		# Reset mouse (issue #222)
 		mapper.mouse.reset()
 	*/
 	
-	// TODO:
+	// TODO: send_to_all is implemented so should be possible 
 	/*
 	if mapper.get_controller():
 		self.send_profile_info(mapper.get_controller(), self._send_to_all)

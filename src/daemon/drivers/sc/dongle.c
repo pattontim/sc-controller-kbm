@@ -68,8 +68,15 @@ void input_interrupt_cb(Daemon* d, InputDevice* dev, uint8_t endpoint, const uin
 			}
 			
 			list_remove(dongles, dg);
-			// TODO: Deallocating this.
-			// free(dg);
+			// TODO: Deallocating dongle controllers.
+			// dg->dev->close(dg->dev);
+			// for (size_t j=0; j<CTRLS_PER_DONGLE; j++){
+			// 	dg->controllers[j] = NULL;
+			// }
+
+			free(dg->dev);
+			free(dg);
+
 			return;
 		}
 		

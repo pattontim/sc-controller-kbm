@@ -19,6 +19,11 @@
 #include "scc/tools.h"
 #include "client.h"
 
+#define KEY_REPEAT_DELAY 250
+#define KEY_STICK_REPEAT_DELAY 650
+#define KEY_REPEAT_INTERVAL 33
+#define KEY_REPEAT_TIMEOUT 25000
+
 const char* SLAVE_MAPPER_TYPE = "slave";
 
 struct SlaveMapper {
@@ -36,6 +41,12 @@ struct SlaveMapper {
 	uint8_t				keys[BTN_DIGI];
 };
 
+struct RepeatTimeout {
+	monotime_t start;
+	Keycode keycode;
+	struct SlaveMapper* mapper;
+	bool bluetooth;
+};
 
 static bool special_action(Mapper* _m, unsigned int sa_action_type, void* sa_data) {
 	// TODO: Move all of this to menu code
@@ -72,6 +83,7 @@ static bool special_action(Mapper* _m, unsigned int sa_action_type, void* sa_dat
 	return false;
 }
 
+// TODO use controller index
 static bool send_button(Mapper* _m, unsigned int controller_index, Keycode b, bool pressed) {
 	struct SlaveMapper* m = container_of(_m, struct SlaveMapper, mapper);
 	char command[64];
@@ -103,12 +115,17 @@ static void key_press(Mapper* _m, Keycode b, bool release_press) {
 		// basically break every game in existence, gamepad events are sent to
 		// daemon and handled there instead.
 		if (m->keys[b] == 0) {
+			// TODO fix controller ID hardcoded, or enforce main = kb
 			send_button(_m, 0, b, 1);
 			m->keys[b] = 1;
 		}
 	} else {
 		if (m->keys[b] == 0) {
 			scc_virtual_device_key_press(d, b);
+#ifdef _WIN32
+			RepeatTimeout* r = create_repeat_timeout(_m, b);
+			g_timeout_add(KEY_REPEAT_INTERVAL, repeat_pressed_timer, r);
+#endif
 		} else if (release_press) {
 			scc_virtual_device_key_release(d, b);
 			scc_virtual_device_key_press(d, b);
@@ -166,6 +183,16 @@ static bool was_pressed(Mapper* _m, SCButton button) {
 	return m->old_state.buttons & button;
 }
 
+static void release_virtual_buttons(Mapper* _m) {
+	struct SlaveMapper* m = container_of(_m, struct SlaveMapper, mapper);
+	for (int i = 0; i < BTN_DIGI; i ++) {
+		if (m->keys[i] > 0) {
+			send_button(_m, 0, i, 0);
+			m->keys[i] = 0;
+		}
+	}
+}
+
 static void set_profile(Mapper* _m, Profile* p, bool cancel_effects) {
 	struct SlaveMapper* m = container_of(_m, struct SlaveMapper, mapper);
 	RC_REL(m->profile);
@@ -193,6 +220,7 @@ static void input(Mapper* _m, ControllerInput* i) { }
 
 static TaskID schedule(Mapper* m, uint32_t delay, MapperScheduleCallback cb, void* userdata) {
 	// return sccd_scheduler_schedule(delay, (sccd_scheduler_cb_internal)cb, m, userdata);
+	// TODO implement or use g_timeout to have analogue to daemon
 	return 0;
 }
 
@@ -200,6 +228,60 @@ static void cancel(Mapper* _m, TaskID task_id) {
 	// sccd_scheduler_cancel(task_id);
 }
 
+RepeatTimeout* create_repeat_timeout(Mapper* _m, Keycode b) {
+	struct SlaveMapper* m = container_of(_m, struct SlaveMapper, mapper);
+	RepeatTimeout * r = malloc(sizeof(struct RepeatTimeout));
+	memset(r, 0, sizeof(struct RepeatTimeout));
+	r->start = mono_time_ms();
+	r->keycode = b;
+	r->mapper = m;
+	// TODO BT timeout differs due to dropped packets
+	// r->bluetooth = strcmp(_m->get_controller(_m)->get_type(_m->get_controller(_m)), "bluetooth") == 0;
+	r->bluetooth = false;
+	return r;
+}
+
+bool print_mapper_keystate(Mapper* _m) {
+	struct SlaveMapper* m = container_of(_m, struct SlaveMapper, mapper);
+
+	if(m == NULL) return false;
+	for(int i = 0; i < BTN_DIGI; i++) {
+		if(m->keys[i] > 0 && ((i >= KEY_UP && i <= KEY_DOWN) || i == 14 || i == 57  )) {
+			DDEBUG("Keystate for %d: %d", i, m->keys[i]);
+		}
+	}
+	return TRUE;
+}
+
+bool repeat_pressed_timer(RepeatTimeout* r) {
+	if(r == NULL || r->mapper == NULL || r->mapper->keys[r->keycode] == 0) goto end_timer;
+
+	monotime_t now = mono_time_ms();
+
+	// catch erroneously long keypresses
+	if((now - (r->start)) > KEY_REPEAT_TIMEOUT) goto end_timer;
+
+	// DDEBUG("Keystate for %d: %d", r->keycode, r->mapper->keys[i]);
+	// DDEBUG("time since start: %d", now - (r->start)); 
+
+	if(((now - (r->start)) >= KEY_REPEAT_DELAY) && r->mapper->keys[r->keycode] > 0 && !(r->bluetooth && isascii(r->keycode))
+	&& r-> keycode != KEY_ENTER) {
+		// DDEBUG("Keystate for %d: %d", r->keycode, r->mapper->keys[r->keycode]);
+		if(!(r->keycode>= KEY_UP && r->keycode<= KEY_DOWN)){
+			VirtualDevice* d = device_for_button(r->mapper, r->keycode);
+			scc_virtual_device_key_press(d, r->keycode);
+		} else if ((now - (r->start)) >= KEY_STICK_REPEAT_DELAY) {
+			VirtualDevice* d = device_for_button(r->mapper, r->keycode);
+			scc_virtual_device_key_press(d, r->keycode);
+		}
+	}
+	return TRUE;
+
+end_timer:
+	DDEBUG("End timer");
+	free(r);
+	return FALSE;
+}
 
 void sccc_slave_mapper_set_devices(Mapper* _m, VirtualDevice* keyboard, VirtualDevice* mouse) {
 	ASSERT(_m->type == SLAVE_MAPPER_TYPE);
@@ -300,6 +382,7 @@ Mapper* sccc_slave_mapper_new(SCCClient* c) {
 	m->mapper.set_profile = set_profile;
 	m->mapper.reload_profile = reload_profile;
 	m->mapper.get_profile = get_profile;
+	// SlaveMapper doesn't connect to controller device
 	m->mapper.set_controller = NULL;
 	m->mapper.get_controller = NULL;
 	m->mapper.set_axis = NULL;
@@ -311,7 +394,7 @@ Mapper* sccc_slave_mapper_new(SCCClient* c) {
 	m->mapper.was_touched = was_touched;
 	m->mapper.is_pressed = is_pressed;
 	m->mapper.was_pressed = was_pressed;
-	m->mapper.release_virtual_buttons = NULL;
+	m->mapper.release_virtual_buttons = release_virtual_buttons;
 	m->mapper.reset_gyros = NULL;
 	m->mapper.special_action = special_action;
 	m->mapper.haptic_effect = haptic_effect;
