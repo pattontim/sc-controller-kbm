@@ -33,8 +33,8 @@ typedef enum {
 	SRC_RPADTOUCH,
 	SRC_LPADPRESS,
 	SRC_RPADPRESS,
-	SRC_LGRIP,
 	SRC_RGRIP,
+	SRC_LGRIP,
 	SRC_START,
 	SRC_C,
 	SRC_BACK,
@@ -48,8 +48,8 @@ typedef enum {
 	SRC_CPADPRESS,
 	SRC_STICKPRESS,
 	SRC_RSTICKPRESS,
-	SRC_LGRIP2,
 	SRC_RGRIP2,
+	SRC_LGRIP2,
 	SRC_DOTS,
 	// Triggers (LT/RT cannot be locked as button)
 	SRC_LTRIGGER,
@@ -142,7 +142,7 @@ static Source string_to_source(const char* source) {
 static const char* source_to_string[] = {
 	"LPADTOUCH", "RPADTOUCH", "LPADPRESS", "RPADPRESS", "RGRIP", "LGRIP",
 	"START", "C", "BACK", "A", "X", "B", "Y", "LB", "RB", "CPADTOUCH",
-	"CPADPRESS", "STICKPRESS", "RSTICKPRESS", "LGRIP2", "RGRIP2", "DOTS",
+	"CPADPRESS", "STICKPRESS", "RSTICKPRESS", "RGRIP2", "LGRIP2", "DOTS",
 	"LTRIGGER", "RTRIGGER", "STICK", "RSTICK",
 	"LPAD", "RPAD", "CPAD", "DPAD",
 };

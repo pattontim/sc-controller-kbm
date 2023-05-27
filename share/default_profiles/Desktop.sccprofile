@@ -2,7 +2,7 @@
 	"buttons": {
 		"A"         : { "action": "button(Keys.KEY_ENTER)" },
 		"B"         : { "action": "button(Keys.KEY_ESC)" },
-		"BACK"      : { "action": "keyboard()" },
+		"BACK"      : { "action": "button(Keys.KEY_LEFTMETA)" },
 		"CPADPRESS" : { "action": "button(Keys.BTN_LEFT)" },
 		"LB"        : { "action": "button(Keys.KEY_BACKSPACE)" },
 		"START"     : { "action": "keyboard()" },

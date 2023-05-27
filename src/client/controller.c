@@ -71,12 +71,7 @@ void on_controller_event(struct _SCCClient* c, const char* controller, Tokens* t
 		//DDEBUG("what:%s",what);
 
 		SCButton b = scc_string_to_button(what);
-		//no idea why a double inversion works to enable SC BT grips
-		// TODO: restore functionality to by_cable
-		if(b == B_LGRIP)
-		 	b = B_RGRIP;
-		 else if(b == B_RGRIP)
-		 	b = B_LGRIP;
+		// TODO: TEST by_cable grips
 		PadStickTrigger pst = 0;
 		if (b != 0) {
 			const char* value = iter_next(tokens);

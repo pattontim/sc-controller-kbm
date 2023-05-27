@@ -178,12 +178,6 @@ static int scbutton_to_index_fixed(SCButton b) {
 static Action* get_button(Profile* _p, SCButton b) {
 	JSONProfile* p = container_of(_p, JSONProfile, profile);
 	Action* a = p->buttons[scbutton_to_index(b)];
-	if(_p->sc_keyboard){
-		if(b == B_LGRIP)
-			a = p->buttons[scbutton_to_index_fixed(b)];
-		else if(b == B_RGRIP)
-			a = p->buttons[scbutton_to_index_fixed(b)];
-	}
 	RC_ADD(a);
 	return a;
 }

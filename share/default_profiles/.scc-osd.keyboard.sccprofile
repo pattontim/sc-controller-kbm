@@ -4,7 +4,7 @@
 		"B":		{ "action": "button(Keys.KEY_ESC)" },
 		"BACK":		{ "action": "OSK.close()" },
 		"DOTS":		{ "action": "button(Keys.KEY_LEFTMETA)" },
-		"START":		{ "action": "OSK.close()" },
+		"START":	{ "action": "OSK.close()" },
 		"LB":		{ "action": "button(Keys.KEY_BACKSPACE)" },
 		"RB":		{ "action": "button(Keys.KEY_SPACE)" },
 		"LGRIP":	{ "action": "button(Keys.KEY_LEFTSHIFT)" },
@@ -13,7 +13,6 @@
 		"RGRIP":	{ "action": "button(Keys.KEY_RIGHTALT)" },
 		"RGRIP2":	{ "action": "button(Keys.KEY_RIGHTALT)" },
 		"RPAD":		{ "action": "OSK.press(RIGHT)" },
-		"START":	{ "action": "button(Keys.KEY_TAB)" },
 		"X":		{ "action": "button(Keys.KEY_LEFTCTRL)" },
 		"Y":		{ "action": "button(Keys.KEY_TAB)" }
 	},

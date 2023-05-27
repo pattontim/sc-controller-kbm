@@ -41,19 +41,33 @@ static void osd_keyboard_on_connection_ready(SCCClient* c) {
 	
 	ControllerData * cd = sccc_get_controller_data(priv->client, priv->controller_id);
 	if(strcmp(cd->type, "deck") == 0){
+		DDEBUG("Deck detected");
 		priv->square = true;
 	} else {
-		Profile* prof = priv->slave_mapper->get_profile(priv->slave_mapper);
-		prof->sc_keyboard = TRUE;
+		DDEBUG("Controller detected");
 	} 
 
-	if (!sccc_lock(c, handle,
+	bool locked;
+	if(strcmp(cd->type, "deck") == 0){
+		DDEBUG("Locking deck");
+		locked = sccc_lock(c, handle,
 					"STICK", "A", "B", "X", "Y", "C", 
-					"LGRIP", //"LGRIP2", TODO lock not break LGRIP
-					"RGRIP", strcmp(cd->type, "deck") == 0 ? "RGRIP2" : "",	
-					strcmp(cd->type, "deck") == 0 ? "DOTS" : "",				
-					"START", "BACK", "LB", "RB", "LTRIGGER", "RTRIGGER",
-					"LPAD", "RPAD", "LPADPRESS", "RPADPRESS")) {
+					"RGRIP", "RGRIP2", "LGRIP", "LGRIP2", "DOTS", "START", "BACK", "LB", "RB"
+					, "LTRIGGER", "RTRIGGER"
+					, "LPAD", "RPAD" 
+					, "LPADPRESS", "RPADPRESS"
+					);
+	} else {
+		locked = sccc_lock(c, handle,
+					"STICK", "A", "B", "X", "Y", "C", 
+					"RGRIP", "LGRIP", "DOTS", "START", "BACK", "LB", "RB"
+					, "LTRIGGER", "RTRIGGER"
+					, "LPAD", "RPAD" 
+					, "LPADPRESS", "RPADPRESS"
+					);
+	}
+
+	if (!locked) {
 			LERROR("Failed to lock controller");
 			g_signal_emit_by_name(G_OBJECT(kbd), "exit", 3);
 			return;

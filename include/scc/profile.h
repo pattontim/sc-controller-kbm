@@ -14,12 +14,6 @@ struct Profile {
 	RC_HEADER;
 
 	/**
-	 * Only when the SC keyboard is specifically open. 
-	 * 
-	 */
-	bool sc_keyboard;
-	
-	/**
 	 * Set to type of profile. String constant used internally as form of type check
 	 * 'type' on two Profiles of same type should point to same value, so it can
 	 * be sucesfully compared not only with strmp, but also using ==.
