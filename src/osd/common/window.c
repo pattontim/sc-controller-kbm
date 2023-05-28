@@ -57,8 +57,89 @@ static void osd_window_class_init(OSDWindowClass *klass) {
 					g_cclosure_marshal_VOID__INT, G_TYPE_NONE, 1, G_TYPE_INT);
 }
 
+void get_safe_window_position(GdkRectangle *monitor_rect, GdkRectangle *window_rect, int mouse_x, int mouse_y, int *safe_x, int *safe_y) {
+    int width, height;
+    width = window_rect->width;
+	height = window_rect->height;
+
+    // Check if window will go off the right side of the screen
+    int right = monitor_rect->x + monitor_rect->width;
+    if (mouse_x + width > right) {
+        *safe_x = right - width;
+    } 
+    // Check if window will go off the left side of the screen
+    else if (mouse_x < monitor_rect->x) {
+        *safe_x = monitor_rect->x;
+    } 
+    // Otherwise, window can be positioned at the mouse x position
+    else {
+        *safe_x = mouse_x;
+    }
+
+    // Check if window will go off the bottom of the screen
+    int bottom = monitor_rect->y + monitor_rect->height;
+    if (mouse_y + height > bottom) {
+        *safe_y = bottom - height;
+    } 
+    // Check if window will go off the top of the screen
+    else if (mouse_y < monitor_rect->y) {
+        *safe_y = monitor_rect->y;
+    } 
+    // Otherwise, window can be positioned at the mouse y position
+    else {
+        *safe_y = mouse_y;
+    }
+}
+
 static void osd_window_show(GtkWidget* widget) {
 	GdkScreen* scr = gdk_screen_get_default();
+
+	GdkDisplay *display = gdk_display_get_default();
+	GdkDeviceManager *device_manager = gdk_display_get_device_manager(display);
+	GdkDevice *pointer = gdk_device_manager_get_client_pointer(device_manager);
+	
+	int xm, ym;
+
+#ifdef _WIN32
+	POINT pos;
+    GetCursorPos(&pos);
+	xm = pos.x;
+	ym = pos.y;
+#else
+	gdk_device_get_position(pointer, NULL, &xm, &ym);
+#endif
+
+	gint n_monitors = gdk_screen_get_n_monitors(scr);
+
+    gint monitor_num = gdk_screen_get_monitor_at_point(scr, xm, ym);
+	GdkRectangle monitor_rect;
+
+	GdkMonitor *monitor = gdk_display_get_monitor(display, monitor_num);
+	double monitor_scale_factor = (double)gdk_monitor_get_scale_factor(monitor);
+	gdk_screen_get_monitor_geometry(scr, monitor_num, &monitor_rect);
+
+// bug: first monitor is not scaled correctly, then 
+// the second+ monitor are incorrectly scaled. Reversed.
+#ifdef _WIN32
+    if (monitor_num > 0 && n_monitors > 1) { 
+		HDC hdc = GetDC(NULL);
+		int dpiX = GetDeviceCaps(hdc, LOGPIXELSX);
+		int dpiY = GetDeviceCaps(hdc, LOGPIXELSY);
+		ReleaseDC(NULL, hdc);
+		monitor_scale_factor = (dpiX / 96.0);
+		g_print("Monitor scale factor: %f\n", monitor_scale_factor);
+    } 
+#endif
+	monitor_rect.x /= monitor_scale_factor;
+	monitor_rect.y /= monitor_scale_factor;
+	monitor_rect.width /= monitor_scale_factor;
+	monitor_rect.height /= monitor_scale_factor;
+	// xm /= monitor_scale_factor;
+	// ym /= monitor_scale_factor;
+	// DDEBUG("mouse position: %d, %d", xm, ym);
+	// g_print("Mouse is on monitor %d: x=%d, y=%d, width=%d, height=%d\n",
+	// 		monitor_num, monitor_rect.x, monitor_rect.y, monitor_rect.width, monitor_rect.height);
+
 	int x, y;
 	gtk_widget_realize(widget);
 	osd_window_compute_position(OSD_WINDOW(widget), &x, &y);
@@ -72,7 +153,7 @@ static void osd_window_show(GtkWidget* widget) {
 	LONG style = GetWindowLong(hwnd, GWL_EXSTYLE);
 	SetWindowLong(hwnd, GWL_EXSTYLE, style | WS_EX_TRANSPARENT | WS_EX_LAYERED | WS_EX_NOACTIVATE);
 	SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
-	gtk_widget_set_opacity(widget, 0.5);
+	gtk_widget_set_opacity(widget, 0.60);
 	gtk_window_show(widget);
 #else
 	gtk_window_show(widget);
@@ -89,7 +170,18 @@ static void osd_window_show(GtkWidget* widget) {
 	XFixesDestroyRegion(dpy, reg);
 	*/
 #endif
-	gdk_window_move(gtk_widget_get_window(widget), x, y);
+	GdkRectangle osd_rect = {x, y, 0, 0};
+	osd_rect.width = gtk_widget_get_allocated_width(widget) * monitor_scale_factor;
+	osd_rect.height = gtk_widget_get_allocated_height(widget) * monitor_scale_factor;
+	// DDEBUG("osd size: %d, %d", osd_rect.width, osd_rect.height);
+
+	get_safe_window_position(&monitor_rect, &osd_rect, xm, ym, &x, &y);
+	x *= monitor_scale_factor;
+	y *= monitor_scale_factor;
+	y = y > 0 ? y : 0;
+	// DDEBUG("osd position: %d, %d", x, y);
+
+	gtk_window_move(GTK_WINDOW(widget), x, y);	
 }
 
 OSDWindow* osd_window_new(const char* wmclass, const OSDWindowCallbacks callbacks) {
@@ -173,7 +265,7 @@ static void osd_window_init(OSDWindow* osdwin) {
 	
 	OSDWindowPrivate* priv = G_TYPE_INSTANCE_GET_PRIVATE(osdwin, OSD_WINDOW_TYPE, OSDWindowPrivate);
 	priv->position.x = 20;
-	priv->position.y = -20;
+	priv->position.y = 20;
 	memset(&priv->callbacks, 0, sizeof(OSDWindowCallbacks));
 }
 
