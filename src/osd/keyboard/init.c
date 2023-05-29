@@ -85,20 +85,24 @@ static void osd_keyboard_on_event(SCCClient* c, uint32_t handle, SCButton button
 }
 
 static gboolean osd_keyboard_on_data_ready(GIOChannel* source, GIOCondition condition, gpointer _kbd) {
-	// TODO SUS, handle disconnect
 	OSDKeyboard* kbd = OSD_KEYBOARD(_kbd);
 	OSDKeyboardPrivate* priv = G_TYPE_INSTANCE_GET_PRIVATE(kbd, OSD_KEYBOARD_TYPE, OSDKeyboardPrivate);
 	const char* message = sccc_recieve(priv->client);
 	if (message != NULL) {
-		if (message[0] == 0)
+		if (message[0] == 0){
 			// Disconnected
-			// TODO: Handle this
+			// TODO: Handled correctly?
 			return false;
+		}
 		// if (message != NULL)
 		// 	LOG("> %s", message);
 	}
 	// on_reconfigured
 	return true;
+}
+
+static void osd_keyboard_on_disconnected(SCCClient* c) {
+	// TODO handle edge cases
 }
 
 static void osd_keyboard_stick(int dx, int dy, void* userdata) {
@@ -183,13 +187,21 @@ static bool osd_keyboard_sa_handler(Mapper* m, unsigned int sa_action_type, void
 		AxisValue* values = (AxisValue*)(data->data);
 		osd_keyboard_set_cursor_pressed(m, kbd, values[0], values[1]);
 	} else if (data->keyword == KW_OSK_CLOSE) {
-		DDEBUG("TODO branch");
 		// TODO: gracefully close connection with daemon
 
 		OSDKeyboardPrivate* priv = G_TYPE_INSTANCE_GET_PRIVATE(kbd, OSD_KEYBOARD_TYPE, OSDKeyboardPrivate);
 		// TODO find equivalent close path in python!
 		priv->slave_mapper->release_virtual_buttons(priv->slave_mapper);
-		exit(0);
+
+		if (priv->slave_mapper != NULL)
+			sccc_slave_mapper_free(priv->slave_mapper, true);
+		// g_source_unref(priv->client_src);
+		if (priv->client_src != NULL)
+			g_source_unref(priv->client_src);
+		sccc_unref(priv->client);
+
+		// TODO further cleanup when kbd persist
+		osd_window_exit(OSD_WINDOW(kbd), 0);
 	}
 	return false;
 }
@@ -272,7 +284,9 @@ OSDKeyboard* osd_keyboard_new(OSDKeyboardOptions* options) {
 	priv->client->userdata = kbd;
 	priv->client->callbacks.on_ready = &osd_keyboard_on_connection_ready;
 	priv->client->callbacks.on_event = &osd_keyboard_on_event;
-	
+	priv->client->callbacks.on_disconnected = &osd_keyboard_on_disconnected;
+	// TODO on_reconfigured?
+
 	sccc_slave_mapper_set_devices(priv->slave_mapper,
 			scc_virtual_device_create(VTP_KEYBOARD, NULL),
 			NULL);
