@@ -27,7 +27,8 @@
  code repository located at:
         http://github.com/signal11/hidapi .
 ********************************************************/
-
+#define TRUE 1
+#define FALSE 0
 
 #include <windows.h>
 

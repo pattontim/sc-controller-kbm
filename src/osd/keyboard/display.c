@@ -20,6 +20,7 @@
 #endif
 
 static const char* LOWCASE =   ",citalh.'u ne m-/gdorsb; qjfypx [ vzkw=]1234567890";
+//static const char* SHIFTCASE = "!@#$%^&*()_=QWERTYUIOP{}|ASDFGHKL:\"ZXCVBNM<>?";
 static const char* SHIFTCASE = "<CITALH>\"U NE M_?GDORSB: QJFYPX { VZKW+}!@#$%^&*()";
 #define LINE_WIDTH			2
 #define FONT_SIZE			38
@@ -52,6 +53,7 @@ static GdkPixbuf* get_button_pixbuf(OSDKeyboardPrivate* priv, SCButton button, i
 		}
 	}
 	intmap_put(priv->button_images, button, pbuf);
+	
 	return pbuf;
 }
 
@@ -90,23 +92,89 @@ bool on_redraw(GtkWidget* draw_area, cairo_t* ctx, void* _priv) {
 	cairo_font_extents(ctx, &fextents);
 	int scbutton_size = hextents.height;
 
+	// //FIXME: windows only, to follow mouse
+	// POINT pos;
+    // GetCursorPos(&pos);
+	// int xm = pos.x;
+	// int ym = pos.y;
+
+	// // GdkDisplay *display = gdk_display_get_default();
+    // // GdkScreen *root_window = gdk_display_get_default_screen(display);
+
+	// GdkWindow *window = gtk_widget_get_window(priv->draw_area);
+    // // Move the window to the mouse position
+    // //gdk_window_move(window, xm, ym);
+	
+	// GdkWindow *parent = gdk_window_get_parent(window);
+	// // // Move the window to the mouse position
+	// gdk_window_move(parent, xm, ym);
+
+	// // gtk_window_move(GTK_WINDOW(ctx), xm, ym);
+	// //cairo_move_to(ctx, xm, ym);	
+
+	// // LINUX ALT 1
+	// gint xm;
+	// gint ym;
+
+	// GdkDisplay *display = gdk_display_get_default();
+	// gdk_display_get_pointer(display, NULL, &xm, &ym, NULL);
+    // // GdkScreen *root_window = gdk_display_get_default_screen(display);
+
+	// GdkWindow *window = gtk_widget_get_window(priv->draw_area);
+    // // Move the window to the mouse position
+    // //gdk_window_move(window, xm, ym);
+	
+	// GdkWindow *parent = gdk_window_get_parent(window);
+	// // // Move the window to the mouse position
+	// gdk_window_move(parent, xm, ym);
+
+	// // gtk_window_move(GTK_WINDOW(ctx), xm, ym);
+	// //cairo_move_to(ctx, xm, ym);
+
+	// LINUX ALT 2
+	gint xm;
+	gint ym;
+
+	GdkDisplay *display = gdk_display_get_default();
+	gdk_display_get_pointer(display, NULL, &xm, &ym, NULL);
+    // GdkScreen *root_window = gdk_display_get_default_screen(display);
+
+	// GdkWindow *window = gtk_widget_get_window(priv->draw_area);
+    // // Move the window to the mouse position
+    // //gdk_window_move(window, xm, ym);
+	
+	// GdkWindow *parent = gdk_window_get_parent(window);
+	// // // Move the window to the mouse position
+	// gdk_window_move(parent, xm, ym);
+	GtkWidget *toplevel_widget = gtk_widget_get_toplevel(priv->draw_area);
+	if (GTK_IS_WINDOW(toplevel_widget)) {
+    	gtk_window_move(GTK_WINDOW(toplevel_widget), xm, ym);
+	}
+
+
 	// Buttons
 	int i = 0;
 	FOREACH_IN(Button*, b, priv->buttons) {
 		bool hilighted = false;
 		bool pressed = false;
 		for (int index=0; index<2; index++) {
+			// DDEBUG("Checking cursor %i", index);
+			// DDEBUG("  pressed_button_index=%i", priv->cursors[index].pressed_button_index);
 			pressed = pressed || (priv->cursors[index].pressed_button_index == b->index);
 			hilighted = hilighted || (is_button_under_cursor(priv, index, b));
 		}
 		if (pressed)
 			gdk_cairo_set_source_rgba(ctx, &priv->color_pressed);
-		else if (hilighted)
-			gdk_cairo_set_source_rgba(ctx, &priv->color_hilight);
+		else if (hilighted){
+			GdkRGBA pure_red = {1, 0, 0, 1};
+			gdk_cairo_set_source_rgba(ctx, &pure_red);
+			// gdk_cairo_set_source_rgba(ctx, &priv->color_hilight);
+		}
 		else if (b->dark)
 			gdk_cairo_set_source_rgba(ctx, &priv->color_button2);
 		else
-			gdk_cairo_set_source_rgba(ctx, &priv->color_button1);
+			// gdk_cairo_set_source_rgba(ctx, &priv->color_button1);
+		    cairo_set_source_rgba(ctx, 0, 0, 0, 0); // Transparent color	
 		
 		// filled rectangle
 		button_as_path(ctx, b);
@@ -171,6 +239,7 @@ bool on_redraw(GtkWidget* draw_area, cairo_t* ctx, void* _priv) {
 					strbuilder_addf(label, "%s", str);
 				} else {
 					for(int i = 0; str[i]; i++){
+						// DDEBUG("str[%i] = %c", i, str[i]);
   						str[i] = tolower(str[i]);
 					}
 					strbuilder_addf(label, "%s", str);
@@ -303,6 +372,7 @@ bool init_display(OSDKeyboard* kbd, OSDKeyboardPrivate* priv) {
 	
 	load_colors(priv);
 	gtk_widget_set_size_request(GTK_WIDGET(priv->draw_area), priv->size.x, priv->size.y);
+	//DDEBUG("Setting size to %d x %d", priv->size.x, priv->size.y);
 	g_signal_connect(G_OBJECT(priv->draw_area), "draw", (GCallback)&on_redraw, priv);
 	
 	GtkWidget* v = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);

@@ -243,6 +243,7 @@ static bool on_redraw(GtkWidget* a, cairo_t* ctx, void* _mnu) {
 
 
 void load_colors(struct RadialMenuData* data) {
+	DDEBUG("Loading colors - radial menu");
 	Config* config = config_load();
 	ASSERT(config);
 	

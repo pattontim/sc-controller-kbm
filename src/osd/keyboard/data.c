@@ -15,17 +15,59 @@ static long json_reader_fn(char* buffer, size_t len, void* reader_data) {
 	return read(*((int*)reader_data), buffer, len);
 }
 
-void load_colors(OSDKeyboardPrivate* priv) {
+const char * add_hex_hash(char * rgba_string) {
+	if (rgba_string[0] == '#') {
+		// DDEBUG("Color already has hash");
+		return rgba_string;
+	}
+	char * rgba_string_with_hash = malloc(strlen(rgba_string) + 2);
+	strcpy(rgba_string_with_hash, "#");
+	strcat(rgba_string_with_hash, rgba_string);
+	return rgba_string_with_hash;
+}
+
+const char * config_get_color_hex(Config * config, char * key) {
+	char * rgba_string = config_get(config, key);
+	if (rgba_string == NULL) {
+		return NULL;
+	}
+	const char * rgba_string_with_hash = add_hex_hash(rgba_string);
+	return rgba_string_with_hash;
+}
+
+void load_colors(OSDKeyboardPrivate* priv) { 
+	// DDEBUG("Loading colors");
 	Config* config = config_load();
 	ASSERT(config);
 	
-	gdk_rgba_parse(&priv->color_pressed, config_get(config, "osk_colors/pressed"));
-	gdk_rgba_parse(&priv->color_hilight, config_get(config, "osk_colors/hilight"));
-	gdk_rgba_parse(&priv->color_button2, config_get(config, "osk_colors/button2"));
-	gdk_rgba_parse(&priv->color_button1, config_get(config, "osk_colors/button1"));
-	gdk_rgba_parse(&priv->color_button1_border, config_get(config, "osk_colors/button1_border"));
-	gdk_rgba_parse(&priv->color_text, config_get(config, "osk_colors/text"));
+	gdk_rgba_parse(&priv->color_pressed, config_get_color_hex(config, "osk_colors/pressed"));
+	gdk_rgba_parse(&priv->color_hilight, config_get_color_hex(config, "osk_colors/hilight"));
+	gdk_rgba_parse(&priv->color_button2, config_get_color_hex(config, "osk_colors/button2"));
+	gdk_rgba_parse(&priv->color_button1, config_get_color_hex(config, "osk_colors/button1"));
+	gdk_rgba_parse(&priv->color_button1_border, config_get_color_hex(config, "osk_colors/button1_border"));
+	gdk_rgba_parse(&priv->color_text, config_get_color_hex(config, "osk_colors/text"));
 	
+	// print text and button colors
+	// DDEBUG("text color: %f %f %f %f", priv->color_text.red, priv->color_text.green, priv->color_text.blue, priv->color_text.alpha);
+	// DDEBUG("button1 color: %f %f %f %f", priv->color_button1.red, priv->color_button1.green, priv->color_button1.blue, priv->color_button1.alpha);
+	// DDEBUG("button1 border color: %f %f %f %f", priv->color_button1_border.red, priv->color_button1_border.green, priv->color_button1_border.blue, priv->color_button1_border.alpha);
+	// DDEBUG("button2 color: %f %f %f %f", priv->color_button2.red, priv->color_button2.green, priv->color_button2.blue, priv->color_button2.alpha);
+	// DDEBUG("hilight color: %f %f %f %f", priv->color_hilight.red, priv->color_hilight.green, priv->color_hilight.blue, priv->color_hilight.alpha);
+	// DDEBUG("pressed color: %f %f %f %f", priv->color_pressed.red, priv->color_pressed.green, priv->color_pressed.blue, priv->color_pressed.alpha);
+
+	if(priv->color_text.alpha == 0.0) {
+			DWARN("Text color from register/config not parsed correctly, using fallback.");
+		// RGBA (108, 122, 137), 1
+		priv->color_text.red = 0.4235294117647059;
+		priv->color_text.green = 0.47843137254901963;
+		priv->color_text.blue = 0.5372549019607843;
+		priv->color_text.alpha = 1.0;
+
+		priv->color_hilight.red = 0.8;
+		priv->color_hilight.green = 0.8;
+		priv->color_hilight.blue = 0.8;
+		priv->color_hilight.alpha = 1.0;
+	}
 	RC_REL(config);
 }
 

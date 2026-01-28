@@ -21,7 +21,8 @@ if host_machine.system() == 'linux'
 	if get_option('android').disabled()
 		platform_dependent_deps += [
 			dependency('libudev'),
-			meson.get_compiler('c').find_library('libusb-1.0'),
+# 			meson.get_compiler('c').find_library('libusb-1.0'),
+            dependency('libusb-1.0')
 		]
 	endif
 elif host_machine.system() == 'openbsd' or host_machine.system() == 'netbsd'
@@ -99,23 +100,23 @@ scc_daemon = executable('scc-daemon',
 	],
 )
 
-scc_input_tester = executable('scc-input-tester',
-	include_directories: include,
-	c_args: platform_dependent_args,
-	link_with: [ utils_lib, tools_lib ],
-	link_args: platform_dependent_link_args,
-	dependencies: platform_dependent_deps + [
-		dependency('zlib'),
-	],
-	sources: platform_dependent_src + [
-		'input_tester.c',
+# scc_input_tester = executable('scc-input-tester',
+# 	include_directories: include,
+# 	c_args: platform_dependent_args,
+# 	link_with: [ utils_lib, tools_lib ],
+# 	link_args: platform_dependent_link_args,
+# 	dependencies: platform_dependent_deps + [
+# 		dependency('zlib'),
+# 	],
+# 	sources: platform_dependent_src + [
+# 		'input_tester.c',
 		
-		'poller.c',
-		'drivers.c',
-		'scheduler.c',
-		'device_monitor.c',
-	],
-)
+# 		'poller.c',
+# 		'drivers.c',
+# 		'scheduler.c',
+# 		'device_monitor.c',
+# 	],
+# )
 
 
 run_target('scc-daemon',
@@ -124,9 +125,9 @@ run_target('scc-daemon',
 	env: run_target_env,
 )
 
-run_target('scc-input-tester',
-	command: [scc_input_tester, '--first'],
-	depends: [scc_input_tester],
-	env: run_target_env,
-)
+# run_target('scc-input-tester',
+# 	command: [scc_input_tester, '--first'],
+# 	depends: [scc_input_tester],
+# 	env: run_target_env,
+# )
 

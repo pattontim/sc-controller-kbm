@@ -28,7 +28,10 @@
 	"gyro": { "action": "cemuhook" },
 	
 	"pad_left": {
-		"action": "feedback(LEFT, 4096, 16, ball(XY(mouse(REL_HWHEEL), mouse(REL_WHEEL))))"
+		"action": "feedback(LEFT, 4096, 16, ball(XY(mouse(REL_HWHEEL), mouse(REL_WHEEL))))",
+		"": {
+            "action": "click( dpad(button(Keys.KEY_UP), button(Keys.KEY_DOWN), button(Keys.KEY_LEFT), button(Keys.KEY_RIGHT) ) )"
+        }
 	},
 	
 	"pad_right": {

@@ -217,6 +217,13 @@ Controller* sccd_get_controller_by_id(const char* id);
 const char* sccd_lock_actions(Client* c, StringList sources);
 /** Unlocks all locked actions */
 void sccd_unlock_actions(Client* c);
+
+/**
+ * Returns NULL on success or source that was not available for observing
+ * Additionally, may return SCCD_OOM in case of OOM error.
+ */
+const char* sccd_observe_actions(Client* c, StringList sources);
+
 /**
  * When there are some actions locked on particular mapper, profile assigned
  * to that mapper is wrapped in LockProfile. To prevent removing this wrapper

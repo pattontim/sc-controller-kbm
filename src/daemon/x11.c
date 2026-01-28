@@ -2,6 +2,7 @@
 #include "scc/utils/logging.h"
 #include "scc/utils/assert.h"
 #include "daemon.h"
+#include "scc/virtual_device.h"
 
 static void* x11display;
 #ifndef NO_X11

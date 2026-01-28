@@ -66,8 +66,26 @@ typedef enum {
 	SRC_INVALID,
 } Source;
 
+// typedef struct {
+// 	Action			action;
+// 	Source			source;
+// 	AxisValue		old_x, old_y;
+// 	Client*			owner;
+// 	void (*store_lock)(struct ReportingAction*);
+// } ReportingAction;
+
+// typedef struct {
+// 	ReportingAction	base;
+// } LockedAction2;
+
+// typedef struct {
+//     ReportingAction base;
+// 	Action*			original_action;	
+// } ObservingAction;
+
 typedef struct {
 	Action			action;
+	Action*			original_action;
 	Source			source;
 	AxisValue		old_x, old_y;
 	Client*			owner;
@@ -212,8 +230,10 @@ static void locked_profile_dealloc(void* obj) {
 static Action* locked_profile_get_button(Profile* _p, SCButton b) {
 	LockProfile* p = container_of(_p, LockProfile, profile);
 	Source src = scbutton_to_source(b);
-	if ((src != SRC_INVALID) && (p->actions[src].owner != NULL))
+	if ((src != SRC_INVALID) && (p->actions[src].owner != NULL)){
+		p->actions[src].original_action = p->original->get_button(p->original, b);
 		return &p->actions[src].action;
+	}
 	return p->original->get_button(p->original, b);
 }
 
@@ -221,6 +241,7 @@ static Action* locked_profile_get_trigger(Profile* _p, PadStickTrigger what) {
 	LockProfile* p = container_of(_p, LockProfile, profile);
 	Source src = what_to_source(what);
 	if ((src != SRC_INVALID) && (p->actions[src].owner != NULL)) {
+		p->actions[src].original_action = p->original->get_trigger(p->original, what);
 		return &p->actions[src].action;
 	}
 	return p->original->get_trigger(p->original, what);
@@ -229,8 +250,10 @@ static Action* locked_profile_get_trigger(Profile* _p, PadStickTrigger what) {
 static Action* locked_profile_get_pad(Profile* _p, PadStickTrigger what) {
 	LockProfile* p = container_of(_p, LockProfile, profile);
 	Source src = what_to_source(what);
-	if ((src != SRC_INVALID) && (p->actions[src].owner != NULL))
+	if ((src != SRC_INVALID) && (p->actions[src].owner != NULL)){
+		p->actions[src].original_action = p->original->get_pad(p->original, what);
 		return &p->actions[src].action;
+	}
 	return p->original->get_pad(p->original, what);
 }
 
@@ -238,6 +261,8 @@ static Action* locked_profile_get_stick(Profile* _p, PadStickTrigger what) {
 	LockProfile* p = container_of(_p, LockProfile, profile);
 	Source s = (what == PST_STICK) ? SRC_STICK : SRC_RSTICK;
 	if (p->actions[s].owner != NULL) {
+		// I think this is just bad design and departs from spec
+		p->actions[s].original_action = p->original->get_stick(p->original, what);
 		return &p->actions[s].action;
 	}
 	return p->original->get_stick(p->original, what);
@@ -269,10 +294,17 @@ static void lock_action_button_press(Action* _a, Mapper *m) {
 	LockedAction* a = container_of(_a, LockedAction, action);
 	Controller* c = m->get_controller(m);
 	char* message = strbuilder_fmt("Event: %s %s 1\n", c->get_id(c), source_to_string[a->source]);
+	DDEBUG("LOCK ACTION MESSAGE: %s",message);
 	if (message == NULL)
 		sccd_drop_client_asap(a->owner);
 	else
 		sccd_socket_consume(a->owner, message);
+}
+
+static void observe_action_button_press(Action* _a, Mapper *m) {
+	lock_action_button_press(_a, m);
+	LockedAction* a = container_of(_a, LockedAction, action);
+	a->original_action->button_press(a->original_action, m);
 }
 
 static void lock_action_whole(Action* _a, Mapper* m, AxisValue x, AxisValue y, PadStickTrigger what) {
@@ -283,10 +315,19 @@ static void lock_action_whole(Action* _a, Mapper* m, AxisValue x, AxisValue y, P
 		
 		Controller* c = m->get_controller(m);
 		char* message = strbuilder_fmt("Event: %s %s %i %i\n", c->get_id(c), scc_what_to_string(what), x, y);
+		//DDEBUG("WHOLE LOCK ACTION MESSAGE: %s",message);
 		if (message == NULL)
 			sccd_drop_client_asap(a->owner);
 		else
 			sccd_socket_consume(a->owner, message);
+	}
+}
+
+static void observe_action_whole(Action* _a, Mapper* m, AxisValue x, AxisValue y, PadStickTrigger what) {
+	lock_action_whole(_a, m, x, y, what);
+	LockedAction* a = container_of(_a, LockedAction, action);
+	if(what_to_source(what) == SRC_LPAD || what_to_source(what) == SRC_RPAD){
+		a->original_action->whole(a->original_action, m, x, y, what);
 	}
 }
 
@@ -300,6 +341,13 @@ static void lock_action_trigger(Action* _a, Mapper* m, TriggerValue old_pos, Tri
 		sccd_socket_consume(a->owner, message);
 }
 
+static void observe_action_trigger(Action* _a, Mapper* m, TriggerValue old_pos, TriggerValue pos, PadStickTrigger what) {
+	lock_action_trigger(_a, m, old_pos, pos, what);
+	LockedAction* a = container_of(_a, LockedAction, action);
+	a->original_action->trigger(a->original_action, m, old_pos, pos, what);
+	// a->original_action = NULL;
+}
+
 static void lock_action_button_release(Action* _a, Mapper *m) {
 	LockedAction* a = container_of(_a, LockedAction, action);
 	Controller* c = m->get_controller(m);
@@ -310,7 +358,13 @@ static void lock_action_button_release(Action* _a, Mapper *m) {
 		sccd_socket_consume(a->owner, message);
 }
 
-/**
+static void observe_action_button_release(Action* _a, Mapper *m) {
+	lock_action_button_release(_a, m);
+	LockedAction* a = container_of(_a, LockedAction, action);
+	a->original_action->button_release(a->original_action, m);
+}
+
+/**  
  * Tests if LockProfile is in place and if it's still needed.
  * if there are no locked actions left, deallocates LockProfile
  * and sets original profile back in place
@@ -337,7 +391,9 @@ const char* sccd_lock_actions(Client* c, StringList sources) {
 		return SCCD_OOM;
 	
 	Profile* profile = c->mapper->get_profile(c->mapper);
+	DDEBUG("got profile %s", profile->type);
 	if (profile->type != PROFILE_TYPE_LOCK) {
+		DDEBUG("making new lock profile");
 		// There was no input locked yet, I have to establish LockProfile 1st
 		LockProfile* lp = malloc(sizeof(LockProfile));
 		if (lp == NULL) {
@@ -394,6 +450,28 @@ const char* sccd_lock_actions(Client* c, StringList sources) {
 	
 	iter_free(it);
 	return NULL;
+}
+
+const char* sccd_observe_actions(Client* c, StringList sources) {
+	char * failed = sccd_lock_actions(c, sources);
+	if (failed == NULL) {
+		ListIterator it = iter_get(sources);
+		if (it == NULL)
+			return SCCD_OOM;
+	
+		Profile* profile = c->mapper->get_profile(c->mapper);
+		LockProfile* lp = container_of(profile, LockProfile, profile);		
+		FOREACH(const char*, source, it) {
+			Source src = string_to_source(source);
+			lp->actions[src].action.whole = &observe_action_whole;
+			lp->actions[src].action.trigger = &observe_action_trigger;
+			// TODO implement observe_action_button_press completely
+			lp->actions[src].action.button_press = &lock_action_button_press;
+			lp->actions[src].action.button_release = &lock_action_button_release;
+		}
+		return NULL;
+	}
+	return failed;
 }
 
 void sccd_unlock_actions(Client* c) {

@@ -33,7 +33,8 @@
 #define AXIS_COUNT			(member_size(ControllerInput, axes) / sizeof(AxisValue))
 #define TRIGGER_COUNT		2
 // Basically, sticks on deck tend to return to non-zero position
-#define STICK_DEADZONE		3000
+// TODO adjust
+#define STICK_DEADZONE		5000
 
 static controller_available_cb controller_available = NULL;
 static controller_test_cb controller_test = NULL;

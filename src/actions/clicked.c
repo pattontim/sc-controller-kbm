@@ -51,6 +51,7 @@ static Action* compress(Action* a) {
 
 // For button press, release and trigger, it's safe to assume that they are being pressed...
 static void button_press(Action* a, Mapper* m) {
+	DDEBUG("MTAAPPA");
 	ClickedModifier* c = container_of(a, ClickedModifier, action);
 	c->child->button_press(c->child, m);
 }

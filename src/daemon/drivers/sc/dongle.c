@@ -76,6 +76,23 @@ void input_interrupt_cb(Daemon* d, InputDevice* dev, uint8_t endpoint, const uin
 
 			free(dg->dev);
 			free(dg);
+			// FIXME: we need a better way to restart on error.
+			// // Trigger ninja rebuild and exit
+			// LOG("Triggering 'ninja -C build scc-daemon' due to controller removal");
+			// fflush(NULL);
+			// pid_t pid = fork();
+			// if (pid == 0) {
+			// 	// In child: exec ninja
+			// 	execlp("ninja", "ninja", "-C", "/home/deck/Downloads/tailscale_copy/sc-controller/build", "scc-daemon", (char*)NULL);
+			// 	// If exec fails
+			// 	_exit(127);
+			// } else if (pid > 0) {
+			// 	// In parent: exit daemon
+			// 	exit(0);
+			// } else {
+			// 	LERROR("Failed to fork for ninja rebuild");
+			// 	exit(127);
+			// }
 
 			return;
 		}

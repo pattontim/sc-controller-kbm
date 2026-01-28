@@ -1,3 +1,21 @@
+#include <stddef.h>
+// --- BEGIN: Save original argc/argv for daemon restart ---
+static int saved_argc = 0;
+static char **saved_argv = NULL;
+
+void sccd_save_argv(int argc, char **argv) {
+	saved_argc = argc;
+	saved_argv = argv;
+}
+
+int sccd_get_saved_argc() {
+	return saved_argc;
+}
+
+char **sccd_get_saved_argv() {
+	return saved_argv;
+}
+// --- END: Save original argc/argv for daemon restart ---
 /**
  * SC Controller - Daemon - main.c
  *
@@ -175,6 +193,7 @@ void sccd_set_proctitle(const char* procname) {
 
 
 int main(int argc, char** argv) {
+	sccd_save_argv(argc, argv);
 	argv0 = argv[0];
 	traceback_set_argv0(argv[0]);
 #ifndef _WIN32

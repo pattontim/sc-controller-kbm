@@ -330,11 +330,11 @@ bool read_serial(SCController* sc) {
 	} 
 	if (sc->type == SC_BT && data[4] == 0) {
 		//TODO flush so don't have to reset controller
-		debug_packet((char *)data, data_size);
+		// debug_packet((char *)data, data_size);
 		return false;
 	}
 	data[13 + bt_offset] = 0;	// to terminate string
-	debug_packet((char *)data, data_size);
+	// debug_packet((char *)data, data_size);
 	strncpy(sc->serial, (const char*) &data[3 + bt_offset], MAX_SERIAL_LEN);
 	if (sc->type == SC_DECK)
 		snprintf(sc->id, MAX_ID_LEN, "deck%s", sc->serial);

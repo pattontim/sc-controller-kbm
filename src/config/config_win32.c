@@ -63,6 +63,8 @@ static HKEY config_get_parent(HKEY root, char* buffer, const char* path, bool cr
 			return NULL;
 		}
 	}
+	// DDEBUG("current user buffer: %s, path: %s", buffer, path); 
+
 	
 	while (obj != NULL) {
 		const char* slash = strchr(path, '/');
@@ -152,6 +154,7 @@ static inline struct _Config* config_new() {
 
 
 Config* config_load() {
+	// DDEBUG("Loading config from registry (win32)");
 	// On Windows, this actually reads from registry
 	struct _Config* c = config_new();
 	if (c == NULL) return NULL;
@@ -209,17 +212,28 @@ DLL_EXPORT bool config_is_parent(Config* _c, const char* path) {
 config_value_t* config_get_value(struct _Config* c, const char* path, ConfigValueType type) {
 	config_value_t* value;
 	// First, try to return cached value
-	if (hashmap_get(c->values, path, (void*)&value) == MAP_OK)
+	if (hashmap_get(c->values, path, (void*)&value) == MAP_OK){
+		// DDEBUG("Returning cached value for '%s'", path);
 		return value;
+	}
 	
 	// 2nd, try to read value from registry
+	// DDEBUG("Reading value for '%s' from registry for type ", path, type);
 	HKEY subkey;
 	value = NULL;
 	REGSAM sam = KEY_READ;
 	HKEY parent = config_get_parent(c->root, c->buffer, path, false);
+	// TCHAR keyPath[MAX_PATH];
+    // DWORD keyPathSize = MAX_PATH;
+
+	// RegQueryInfoKey(parent, keyPath, &keyPathSize, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+	// DDEBUG("CurrentUser registry key path: %ls\n", keyPath);
+
 	char buffer[BUFFER_SIZE];
+	// DDEBUG("Parent key is '%s'", c->buffer);
 	
 	if (parent != NULL) {
+		// DDEBUG("Parent key is '%s'", c->buffer);
 		LSTATUS r;
 		DWORD reg_type;
 		DWORD size;
@@ -231,6 +245,7 @@ config_value_t* config_get_value(struct _Config* c, const char* path, ConfigValu
 		
 		switch (type) {
 		case CVT_OBJECT:
+			// DDEBUG("Creating subkey for '%s'", path);
 			// Just check if key exists, return NULL if it doesn't
 			r = RegOpenKeyExA(c->root, path, 0, sam, &subkey);
 			if (r != ERROR_SUCCESS)
@@ -239,6 +254,7 @@ config_value_t* config_get_value(struct _Config* c, const char* path, ConfigValu
 			break;
 		case CVT_STRING:
 		case CVT_STR_ARRAY:
+			// DDEBUG("Reading string value for '%s'", path);
 			// retrieve size
 			r = RegGetValueA(parent, NULL, last, RRF_RT_REG_SZ | RRF_RT_REG_MULTI_SZ, &reg_type, NULL, &size);
 			if (r != ERROR_SUCCESS) {
@@ -298,6 +314,7 @@ config_value_t* config_get_value(struct _Config* c, const char* path, ConfigValu
 			}
 			break;
 		case CVT_DOUBLE:
+			// DDEBUG("Reading double value for '%s'", path);
 			size = BUFFER_SIZE;
 			r = RegGetValueA(parent, NULL, last, RRF_RT_REG_SZ, &reg_type, buffer, &size);
 			if (r != ERROR_SUCCESS)
@@ -310,6 +327,7 @@ config_value_t* config_get_value(struct _Config* c, const char* path, ConfigValu
 			break;
 		case CVT_INT:
 		case CVT_BOOL:
+			// DDEBUG("Reading int value for '%s'", path);
 			size = sizeof(int64_t);
 			r = RegGetValueA(parent, NULL, last, RRF_RT_REG_QWORD, &reg_type, &value->v_int, &size);
 			if (r != ERROR_SUCCESS)
@@ -317,6 +335,7 @@ config_value_t* config_get_value(struct _Config* c, const char* path, ConfigValu
 				goto config_get_value_fail;
 			break;
 		case CVT_INVALID:
+			// DDEBUG("Invalid type for '%s'", path);
 			return NULL;
 		}
 		
@@ -328,11 +347,13 @@ config_value_t* config_get_value(struct _Config* c, const char* path, ConfigValu
 			free(value);
 			return NULL;
 		}
+		// DDEBUG("Retrieved value for %s and put in map", path);
 		return value;
 	}
 	
 	// 3rd, give up and just return NULL
 config_get_value_fail:
+	// DDEBUG("Failed to retrieve value for %s", path);
 	// code jumps / reaches here if memory cannot t be allocated
 	// or if value from registry can't be retrieved.
 	free(value);
@@ -762,6 +783,12 @@ ssize_t config_get_controllers(Config* _c, const char** target, ssize_t limit) {
 	struct _Config* c = container_of(_c, struct _Config, config);
 	HKEY key = config_get_parent(c->root, c->buffer, "/devices/dummy", true);
 	if (key == NULL) return 0;
+
+	// TCHAR keyPath[MAX_PATH];
+    // DWORD keyPathSize = MAX_PATH;
+
+    // RegQueryInfoKey(key, keyPath, &keyPathSize, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+	// DDEBUG("CurrentUser registry key path: %ls\n", keyPath);
 	
 	ssize_t rv = config_enum_keys(c, key, target, limit, false);
 	RegCloseKey(key);

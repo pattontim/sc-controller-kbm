@@ -244,23 +244,23 @@ bool sccd_set_profile(Mapper* m, const char* filename) {
 	// TODO: all of this
 	/*
 	if mapper.profile.gyro and not p.gyro:
-			# Turn off gyro sensor that was enabled but is no longer needed
-			if mapper.get_controller():
-				log.debug("Turning gyrosensor OFF")
-				mapper.get_controller().set_gyro_enabled(False)
-		elif not mapper.profile.gyro and p.gyro:
-			# Turn on gyro sensor that was turned off, if profile has gyro action set
-			if mapper.get_controller():
-				log.debug("Turning gyrosensor ON")
-				mapper.get_controller().set_gyro_enabled(True)
+		# Turn off gyro sensor that was enabled but is no longer needed
+		if mapper.get_controller():
+			log.debug("Turning gyrosensor OFF")
+			mapper.get_controller().set_gyro_enabled(False)
+	elif not mapper.profile.gyro and p.gyro:
+		# Turn on gyro sensor that was turned off, if profile has gyro action set
+		if mapper.get_controller():
+			log.debug("Turning gyrosensor ON")
+			mapper.get_controller().set_gyro_enabled(True)
 	# Cancel everything -> call cancel and use structs to iter
-		mapper.cancel_all()
+	mapper.cancel_all()
 	*/
 	// Release all buttons
 	m->release_virtual_buttons(m);
 	/* TODO: AND all of this
-		# Reset mouse (issue #222)
-		mapper.mouse.reset()
+	# Reset mouse (issue #222)
+	mapper.mouse.reset()
 	*/
 	
 	// TODO: send_to_all is implemented so should be possible 
@@ -352,6 +352,23 @@ static void controller_remove(Controller* c) {
 		c->deallocate(c);
 		sccd_clients_for_all(sccd_send_controller_list);
 		sccd_clients_for_all(sccd_send_profile_list);
+
+		// Trigger ninja rebuild and exit
+		LOG("Triggering 'ninja -C build scc-daemon' due to controller removal");
+		fflush(NULL);
+		pid_t pid = fork();
+		if (pid == 0) {
+			// In child: exec ninja
+			execlp("ninja", "ninja", "-C", "/home/deck/Downloads/tailscale_copy/sc-controller/build", "scc-daemon", (char*)NULL);
+			// If exec fails
+			_exit(127);
+		} else if (pid > 0) {
+			// In parent: exit daemon
+			exit(0);
+		} else {
+			LERROR("Failed to fork for ninja rebuild");
+			exit(127);
+		}
 	}
 }
 

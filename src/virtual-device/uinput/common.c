@@ -82,6 +82,7 @@ VirtualDevice* setup_device(VirtualDeviceType type,
 		free(vdev);
 		return NULL;
 	}
+	DDEBUG("====== Device '%s' created", uidev.name);
 	
 	IOCTLSETUP(UI_DEV_CREATE, 0);
 	

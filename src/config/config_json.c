@@ -74,6 +74,7 @@ static bool config_load_json_file(struct _Config* c, int fd, char* error_return)
 }
 
 Config* config_load() {
+	DDEBUG("Loading cofig generic way (json)");
 	char error_return[SCC_CONFIG_ERROR_LIMIT];
 	struct _Config* c = config_new();
 	if (c == NULL) return NULL;

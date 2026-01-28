@@ -3,7 +3,7 @@
 #osd-message, #osd-message-1, #osd-menu, #osd-menu-inactive, #osd-gesture, #osd-keyboard {
 	background-color: #{background};
 	border: 6px #{background+1} solid;
-	opacity: 0.95;
+	opacity: 0.60;
 }
 
 #osd-message-1 {

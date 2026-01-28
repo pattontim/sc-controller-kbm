@@ -6,6 +6,7 @@
  */
 #define LOG_TAG "sc_by_bt"
 #include "scc/utils/logging.h"
+#include "scc/utils/container_of.h"
 #include "scc/utils/assert.h"
 #include "scc/input_device.h"
 #include "scc/input_test.h"
@@ -61,6 +62,7 @@ int bt_handle_input(SCController *sc, uint8_t* i){
 				}
 				// debug_packet(ptr->buffer, PACKET_SIZE);
 			}
+			// debug_packet(ptr_buffer, PACKET_SIZE);
 						
 			int rv = 0;
 			int bit;
@@ -172,6 +174,37 @@ void input_interrupt_cb(Daemon* d, InputDevice* dev, uint8_t endpoint, const uin
 	}	
 }
 
+static void turnoff(Controller* c) {
+	/*DDEBUG("TURNING OFF (BT)");
+	SCController* sc = container_of(c, SCController, controller);
+	uint8_t data[65] = { PT_BT_PREFIX, PT_LIZARD_BUTTONS, 0x01 };
+	uint8_t* response;
+	if ((response = sc->dev->hid_request(sc->dev, sc->idx, data, -65)) == NULL) {
+		LERROR("Failed to activate lizard mode 1");
+	}
+	debug_packet((char *)response, 128);
+	data[1] = PT_LIZARD_MOUSE;
+	if ((response = sc->dev->hid_request(sc->dev, sc->idx, data, -65)) == NULL) {
+		LERROR("Failed to activate lizard mode 1");
+	}
+	debug_packet((char *)response, 128);*/
+	/*
+	//uint8_t data[128] = { PT_BT_PREFIX, PT_OFF, 0x04, 0x6f, 0x66, 0x66, 0x21 };
+	sc->dev->close(sc->dev);
+	uint8_t* response;
+	uint8_t* data; 
+	data = calloc(128, sizeof(uint8_t));
+		data[0] = PT_BT_PREFIX;
+		data[1] = PT_OFF;
+		data[2] = 0x04;
+	    data[3] = 0x6f;
+		data[4] = 0x66;
+		data[5] = 0x66; 
+		data[6] = 0x21;
+	//if ((response = sc->dev->hid_request(sc->dev, sc->idx, data, -(65))) == NULL)
+	//	LERROR("Failed to turn off controller");
+	//debug_packet((char *)data, 128);*/
+}
 
 static bool hotplug_cb(Daemon* daemon, const InputDeviceData* idata) {
 	if (controller_available != NULL) {
@@ -214,6 +247,7 @@ static bool hotplug_cb(Daemon* daemon, const InputDeviceData* idata) {
 		DEBUG("Failed to add controller to daemon");
 		goto hotplug_cb_fail;
 	}
+	sc->controller.turnoff = &turnoff;
 	return true;
 hotplug_cb_failed_to_configure:
 	LERROR("Failed to configure controlller");

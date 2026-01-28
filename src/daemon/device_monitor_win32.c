@@ -110,12 +110,17 @@ static char* input_device_get_name(const InputDeviceData* idev) {
 
 bool sccd_device_monitor_test_filter(Daemon* d, const InputDeviceData* idev, const HotplugFilter* filter) {
 	struct Win32InputDeviceData* wdev = container_of(idev, struct Win32InputDeviceData, idev);
+	// DDEBUG("PATH %s", idev->path);
+	// DDEBUG("TYPE %d", filter->type);
 	switch (filter->type) {
 	case SCCD_HOTPLUG_FILTER_VENDOR:
+		// DDEBUG("	SUB,wven,fven: %d,%x,%x", idev->subsystem, wdev->vendor,filter->vendor);		
 		return (idev->subsystem != DINPUT) && (wdev->vendor == filter->vendor);
 	case SCCD_HOTPLUG_FILTER_PRODUCT:
+		// DDEBUG("	SUB,wpid,fpid: %d,%x,%x", idev->subsystem, wdev->product,filter->product);		
 		return (idev->subsystem != DINPUT) && (wdev->product == filter->product);
 	case SCCD_HOTPLUG_FILTER_IDX:
+		// DDEBUG("	IDX: %d,%d", wdev->idx,filter->idx);		
 		return (wdev->idx == filter->idx);
 	case SCCD_HOTPLUG_FILTER_PATH:
 		return 0 == strcmp(idev->path, filter->path);

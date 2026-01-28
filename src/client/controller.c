@@ -98,6 +98,7 @@ bool request_controller(struct _SCCClient* c, int handle) {
 	if ((cd == NULL) || (cd->id == NULL)) return false;
 	char* buffer = strbuilder_fmt("Controller: %s", cd->id);
 	if (buffer == NULL) return false;
+	DDEBUG("Requesting controller MESSAGE: %s", buffer);
 	int32_t id = sccc_request(&c->client, buffer);
 	free(buffer);
 	buffer = sccc_get_response(&c->client, id);
@@ -136,6 +137,43 @@ bool _sccc_lock(SCCClient* _c, int handle, const char* src1, ...) {
 	
 	char* buffer = strbuilder_consume(sb);
 	if (buffer == NULL) return false;
+	DDEBUG("Locking MESSAGE: %s", buffer);
+	int32_t id = sccc_request(&c->client, buffer);
+	free(buffer);
+	if (id < 0) return false;
+	buffer = sccc_get_response(&c->client, id);
+	bool rv = sccc_is_ok(buffer);
+	free(buffer);
+	return rv;
+}
+
+bool _sccc_observe(SCCClient* _c, int handle, const char* src1, ...) {
+	va_list args;
+	struct _SCCClient* c = container_of(_c, struct _SCCClient, client);
+	if (!request_controller(c, handle)) return false;
+	if (src1 == NULL)
+		// Sucesfully locked nothing
+		return true;
+	
+	StrBuilder* sb = strbuilder_new();
+	if (sb == NULL) return false;	// OOM
+	strbuilder_add(sb, "Observe:");
+	va_start(args, src1);
+	const char* arg = src1;
+	while (arg != NULL) {
+		strbuilder_add(sb, " ");
+		strbuilder_add(sb, arg);
+		arg = va_arg(args, const char*);
+	}
+	va_end(args);
+	if (strbuilder_failed(sb)) {
+		strbuilder_free(sb);
+		return false;
+	}
+	
+	char* buffer = strbuilder_consume(sb);
+	if (buffer == NULL) return false;
+	//DDEBUG("observing MESSAGE: %s", buffer);
 	int32_t id = sccc_request(&c->client, buffer);
 	free(buffer);
 	if (id < 0) return false;
@@ -146,6 +184,7 @@ bool _sccc_lock(SCCClient* _c, int handle, const char* src1, ...) {
 }
 
 uint32_t sccc_get_controller_handle(SCCClient* _c, const char* id) {
+	// DDEBUG("sccc_get_controller_handle by id %s",id);
 	struct _SCCClient* c = container_of(_c, struct _SCCClient, client);
 	// Not using Iterator here to avoid need to allocate it
 	if (id == NULL) {
@@ -161,9 +200,11 @@ uint32_t sccc_get_controller_handle(SCCClient* _c, const char* id) {
 			return c->controllers->items[0]->handle;
 		}
 	} else {
+		// DDEBUG("id not null");
 		FOREACH_IN(ControllerData*, cd, c->controllers) {
 			if (strcmp(cd->id, id) == 0) {
 				// Got one
+				// DDEBUG("found nonnull controller %s, returning handle %d",cd->id,cd->handle);
 				return cd->handle;
 			}
 		}
@@ -172,6 +213,7 @@ uint32_t sccc_get_controller_handle(SCCClient* _c, const char* id) {
 }
 
 ControllerData * sccc_get_controller_data(SCCClient* _c, const char* id) {
+	DDEBUG("sccc_get_controller_data by id %s",id);
 	struct _SCCClient* c = container_of(_c, struct _SCCClient, client);
 	// Not using Iterator here to avoid need to allocate it
 	if (id == NULL) {

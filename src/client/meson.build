@@ -31,6 +31,11 @@ client_lib = shared_library('scc-client',
 slave_mapper_lib = shared_library('scc-slave-mapper',
 	include_directories: include,
 	link_with: [utils_lib, tools_lib, client_lib, virtual_device_lib ],
+	dependencies: [
+		dependency('gtk+-3.0', version: '>=3.22.0'),
+		dependency('glib-2.0', version: '>=2.56.0'),
+		dependency('gdk-pixbuf-2.0', version: '>=2.0'),
+	],
 	sources: [
 		'slave_mapper.c',
 	]

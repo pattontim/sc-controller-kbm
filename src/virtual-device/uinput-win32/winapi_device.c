@@ -78,10 +78,13 @@ void winapi_keyboard_button(struct Internal* idev, Keycode key, bool pressed) {
 		// Invalid keycode
 		return;
 	}
+	DDEBUG("WINAPI PRESS %u, %d", scc_keycode_to_win32_scan(key), pressed);
 	
 	input.type = INPUT_KEYBOARD;
+	input.ki.time = 0;
 	input.ki.wVk = 0;
-	input.ki.dwFlags = (pressed ? 0 : KEYEVENTF_KEYUP) | KEYEVENTF_SCANCODE;
+    input.ki.dwExtraInfo = 0;
+	input.ki.dwFlags = (pressed ? (KEYEVENTF_SCANCODE) : (KEYEVENTF_SCANCODE | KEYEVENTF_KEYUP));
 	uint16_t scancode = scc_keycode_to_win32_scan(key);
 	if (scancode & 0xE000) {
 		input.ki.dwFlags |= KEYEVENTF_EXTENDEDKEY;
@@ -89,7 +92,7 @@ void winapi_keyboard_button(struct Internal* idev, Keycode key, bool pressed) {
 	} else {
 		input.ki.wScan = scancode;
 	}
-	
+ 
 	UINT r = SendInput(1, &input, sizeof(input));
 	if (r < 1)
 		LERROR("SendInput failed: %i", GetLastError());

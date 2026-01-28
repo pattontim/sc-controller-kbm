@@ -80,7 +80,7 @@ const struct config_item DEFAULTS[] = {
 	{ "gesture_colors/line",				CVT_STRING,		.v_str = "#ffffff1a" },
 	
 	// Opacity of OSD windows
-	{ "windows_opacity",					CVT_DOUBLE,		.v_double = 0.95 },
+	{ "windows_opacity",					CVT_DOUBLE,		.v_double = 0.60 },
 	
 	/** GUI config */
 	

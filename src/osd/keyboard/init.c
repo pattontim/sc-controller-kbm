@@ -1,6 +1,8 @@
 #define LOG_TAG "OSD"
 #include "scc/utils/strbuilder.h"
 #include "scc/utils/argparse.h"
+#include "scc/utils/tokenizer.h"
+#include "scc/utils/iterable.h"
 #include "scc/utils/logging.h"
 #include "scc/utils/assert.h"
 #include "scc/osd/osd_keyboard.h"
@@ -9,6 +11,8 @@
 #include "scc/virtual_device.h"
 #include "scc/special_action.h"
 #include "scc/profile.h"
+#include "scc/parameter.h"
+#include "scc/controller.h"
 #include "scc/client.h"
 #include "scc/tools.h"
 #include "keyboard.h"
@@ -29,6 +33,7 @@ static void osd_keyboard_class_init(OSDKeyboardClass *klass) { }
 static void osd_keyboard_on_connection_ready(SCCClient* c) {
 	OSDKeyboard* kbd = OSD_KEYBOARD(c->userdata);
 	OSDKeyboardPrivate* priv = G_TYPE_INSTANCE_GET_PRIVATE(kbd, OSD_KEYBOARD_TYPE, OSDKeyboardPrivate);
+	DDEBUG("Connection using controller '%s' ready", priv->controller_id);
 	uint32_t handle = sccc_get_controller_handle(c, priv->controller_id);
 	if (handle == 0) {
 		if (priv->controller_id == NULL)
@@ -47,6 +52,8 @@ static void osd_keyboard_on_connection_ready(SCCClient* c) {
 		DDEBUG("Controller detected");
 	} 
 
+	DDEBUG("Controller '%s' ready using handle %i", priv->controller_id, handle);
+
 	bool locked;
 	if(strcmp(cd->type, "deck") == 0){
 		DDEBUG("Locking deck");
@@ -57,10 +64,37 @@ static void osd_keyboard_on_connection_ready(SCCClient* c) {
 					, "LPAD", "RPAD" 
 					, "LPADPRESS", "RPADPRESS"
 					);
+	
+	// WIP: observe protocol
+	// if (priv->options->observe != NULL) {
+	// 	Tokens* tokens = tokenize(priv->options->observe);
+	// 	tokens_auto_skip_whitespace(tokens);
+
+	// 	StringList sources = list_new(char, 0);
+	// 	list_set_dealloc_cb(sources, &free);
+	// 	// TODO 
+	// 	// if (sources == NULL)
+	// 	// 	return sccd_on_client_command_oom(client);
+	// 	while (iter_has_next(tokens)) {
+	// 		char* source = strbuilder_cpy(iter_next(tokens));
+	// 		bool added = (source != NULL) ? list_add(sources, source) : false;
+	// 		if (!added) {
+	// 			free(source);
+	// 			list_free(sources);
+	// 			// TODO
+	// 			// return sccd_on_client_command_oom(client);
+	// 		}
+	// 	}
+
+	// 	// char ** sources_array = list_consume(sources);
+	// 	locked = sccc_observe(c, handle, sources);
+	// 	// free(sources_array);
 	} else {
+		// why is LGRIP/RGRIP on non deck?
 		locked = sccc_lock(c, handle,
 					"STICK", "A", "B", "X", "Y", "C", 
-					"RGRIP", "LGRIP", "DOTS", "START", "BACK", "LB", "RB"
+					"RGRIP", "RGRIP2", "LGRIP", "LGRIP2", "DOTS", "START", "BACK" 
+					, "LB", "RB"
 					, "LTRIGGER", "RTRIGGER"
 					, "LPAD", "RPAD" 
 					, "LPADPRESS", "RPADPRESS"
@@ -81,7 +115,7 @@ static void osd_keyboard_on_event(SCCClient* c, uint32_t handle, SCButton button
 	OSDKeyboardPrivate* priv = G_TYPE_INSTANCE_GET_PRIVATE(kbd, OSD_KEYBOARD_TYPE, OSDKeyboardPrivate);
 	sccc_slave_mapper_feed(priv->slave_mapper, button, pst, values);
 	// else
-	// 	LOG("# %i %i %i > %i %i", handle, button, pst, values[0], values[1]);
+	// LOG("# %i %i %i > %i %i", handle, button, pst, values[0], values[1]);
 }
 
 static gboolean osd_keyboard_on_data_ready(GIOChannel* source, GIOCondition condition, gpointer _kbd) {
@@ -155,9 +189,12 @@ static void osd_keyboard_set_cursor_pressed(Mapper* m, OSDKeyboard* kbd, int ind
 			if (is_button_under_cursor(priv, index, b)) {
 				if (priv->cursors[index].pressed_button_index != b->index) {
 					Action* a = b->action;
+					// label index keycode
+					DDEBUG("Button %i pressed, label: %s, index: %i, keycode: %i", b->index, b->label, b->index, b->keycode);
 					priv->cursors[index].pressed_button_index = b->index;
 					a->button_press(a, m);
 				}
+				// only for performance
 				break;
 			}
 		}
@@ -222,7 +259,7 @@ static void osd_keyboard_init(OSDKeyboard* kbd) {
 }
 
 static const char *const usage[] = {
-	"scc-osd-keyboard -f <filename>",
+	"scc-osd-keyboard -f <filename> [-o] <observe_buttons>",
 	NULL,
 };
 
@@ -231,9 +268,11 @@ int osd_keyboard_parse_args(OSDKeyboardOptions* options, int argc, char** argv) 
 		OPT_HELP(),
 		OPT_GROUP("Basic options"),
 		OPT_STRING('f', NULL, &options->filename, "keyboard definition file to use"),
+		OPT_BOOLEAN('o', "observe", &options->observe, "buttons to only observe"),
 		OPT_END(),
 	};
 	options->filename = NULL;
+	options->observe = NULL;
 	struct argparse argparse;
 	argparse_init(&argparse, argopts, usage, 0);
 	argparse_describe(&argparse, "\nDisplays on-screen keyboard", NULL);
@@ -261,11 +300,13 @@ static bool update(OSDKeyboardPrivate * priv) {
 
 
 OSDKeyboard* osd_keyboard_new(OSDKeyboardOptions* options) {
+	DEBUG("Starting osd-keyboard");
 	SCCClient* client = sccc_connect();
 	if (client == NULL) {
 		LERROR("Failed to connect to scc-daemon");
 		return NULL;
 	}
+	DEBUG("Connected to scc-daemon");
 	
 	const OSDWindowCallbacks callbacks = {};
 	GtkWidget* o = g_object_new(OSD_KEYBOARD_TYPE, GTK_WINDOW_TOPLEVEL, NULL);
@@ -293,6 +334,7 @@ OSDKeyboard* osd_keyboard_new(OSDKeyboardOptions* options) {
 	
 	int err;
 	char* osd_kbd_pro = scc_find_profile(".scc-osd.keyboard");
+	DEBUG("Loading profile %s", osd_kbd_pro);
 	Profile* profile = scc_profile_from_json(osd_kbd_pro, &err, true);
 	free(osd_kbd_pro);
 	if ((profile == NULL) || !load_keyboard_data(options->filename, priv)) {
@@ -307,22 +349,29 @@ OSDKeyboard* osd_keyboard_new(OSDKeyboardOptions* options) {
 	g_source_set_callback(priv->client_src,
 			(GSourceFunc)osd_keyboard_on_data_ready, kbd, NULL);
 	
-	if (!init_display(kbd, priv))
+	if (!init_display(kbd, priv)){
 		// TODO: Do I need to deallocate something here?
 		goto osd_keyboard_new_failed;
+	}
 	
 	osd_keyboard_set_cursor_position(kbd, 0, 0, 0);
 	osd_keyboard_set_cursor_position(kbd, 1, 0, 0);
 	priv->cursors[0].pressed_button_index = -1;
 	priv->cursors[1].pressed_button_index = -1;
 
+	priv->options = options;
+
+// windows only, as linux key holds just work,
+#ifdef _WIN32
 	priv->mod_state = 0;	
-	g_timeout_add(100, (GSourceFunc) update, priv);
+	g_timeout_add(50, (GSourceFunc) update, priv);
+#endif
 
 	generate_help_lines(priv);
 	return kbd;
 
 osd_keyboard_new_failed:
+	DEBUG("Failed to initialize osd-keyboard");
 	if (priv->slave_mapper != NULL)
 		sccc_slave_mapper_free(priv->slave_mapper, true);
 	if (priv->client_src != NULL)

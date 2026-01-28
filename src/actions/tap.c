@@ -38,6 +38,7 @@ static void tap_dealloc(Action* a) {
 }
 
 static void timer(Mapper* m, void* userdata) {
+	DDEBUG("TAP");
 	Tap* t = (Tap*)userdata;
 	if (t->schedule.press) {
 		m->key_press(m, t->button, true);
@@ -56,6 +57,7 @@ static void timer(Mapper* m, void* userdata) {
 
 static void button_press(Action* a, Mapper* m) {
 	Tap* t = container_of(a, Tap, action);
+	DDEBUG("TAP RPRESS");
 	if (t->schedule.count > 0) {
 		WARN("You are activating 'tap' faster than it can be processed");
 		return;

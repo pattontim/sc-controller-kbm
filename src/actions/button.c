@@ -119,6 +119,7 @@ static void button_dealloc(Action* a) {
 
 static void button_press(Action* a, Mapper* m) {
 	ButtonAction* b = container_of(a, ButtonAction, action);
+	DDEBUG("BUTTON");
 	if (HAPTIC_ENABLED(&b->hdata))
 		m->haptic_effect(m, &b->hdata);
 	m->key_press(m, b->button[0], false);
@@ -132,6 +133,7 @@ static void button_release (Action* a, Mapper* m) {
 static void whole(Action* a, Mapper* m, AxisValue x, AxisValue y, PadStickTrigger what) {
 	Keycode press;
 	ButtonAction* b = container_of(a, ButtonAction, action);
+	DDEBUG("WHOLE");
 	switch (what) {
 	case PST_STICK:
 		// Stick used used as one big button (probably as part of ring bindings)
@@ -148,6 +150,7 @@ static void whole(Action* a, Mapper* m, AxisValue x, AxisValue y, PadStickTrigge
 	case PST_LPAD:
 	case PST_RPAD:
 		// Possibly special case, pressing with click() on entire pad
+		DDEBUG("PAD CLICK");
 		press = scc_what_to_pressed_button(what);
 		if (m->is_pressed(m, press) && !m->was_pressed(m, press)) {
 			m->key_press(m, b->button[0], false);

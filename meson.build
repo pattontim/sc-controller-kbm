@@ -185,6 +185,6 @@ endif
 if get_option('menu-generators').enabled()
 	subdir('src/menu-generators')
 endif
-subdir('src/gui')
-subdir('tests')
+# subdir('src/gui')
+# subdir('tests')
 

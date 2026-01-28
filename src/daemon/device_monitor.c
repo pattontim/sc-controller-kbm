@@ -57,13 +57,19 @@ void sccd_device_monitor_new_device(Daemon* d, const InputDeviceData* idata) {
 		return;
 	}
 	FOREACH_IN(CallbackData*, data, callbacks) {
-		if (data->subsystem != idata->subsystem)
+		if (data->subsystem != idata->subsystem){
+			DDEBUG("skipping system, mismatch %d != %d... ", data->subsystem, idata->subsystem);
 			continue;
+		}
 		bool matches_filters = true;
 		FOREACH_IN(HotplugFilter*, filter, data->filters) {
 			if (!sccd_device_monitor_test_filter(d, idata, filter)) {
 				matches_filters = false;
+				DDEBUG("---- NO MATCH");
 				break;
+			} else
+			{
+				DDEBUG("---- MATCH FOUND");
 			}
 		}
 		if (matches_filters) {

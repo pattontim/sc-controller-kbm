@@ -7,6 +7,7 @@
 #include <gdk-pixbuf/gdk-pixbuf.h>
 #include <gtk/gtk.h>
 #include "scc/client.h"
+#include "scc/osd/osd_keyboard.h"
 
 typedef struct _OSDKeyboard	OSDKeyboard;
 typedef struct Button Button;
@@ -63,6 +64,7 @@ typedef struct _OSDKeyboardPrivate {
 	GdkRGBA						color_button1_border;
 	GdkRGBA						color_text;
 	guint						mod_state;
+	OSDKeyboardOptions*			options;
 } OSDKeyboardPrivate;
 
 

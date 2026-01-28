@@ -48,7 +48,8 @@ ninja -C $1 || exit 1
 mkdir -p release-win32/share/glib-2.0
 mkdir -p release-win32/python
 mkdir -p release-win32/lib
-cp -vnur share/* release-win32/share
+# cp -vnur share/* release-win32/share
+cp -vur share/* release-win32/share
 cp -vur python/scc release-win32/python
 cp -vnur /mingw32/lib/python2.7 release-win32/lib
 cp -vu python/gui_loader.py release-win32/python/
@@ -69,8 +70,11 @@ for dll in $(find $1 -name "*.dll" -and -not -name "libscc-drv*" -and -not -name
 done
 
 mkdir -p release-win32/drivers/
+# wrongly use perent dir??
+mkdir -p drivers/
 for i in "${DRIVERS[@]}" ; do
 	cp -vu "$1/src/daemon/drivers/libscc-drv-$i.dll" release-win32/drivers/
+	cp -vu "$1/src/daemon/drivers/libscc-drv-$i.dll" drivers/
 done
 
 mkdir -p release-win32/menu-generators/

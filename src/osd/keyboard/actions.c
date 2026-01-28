@@ -58,6 +58,7 @@ static void button_release(Action* a, Mapper* m) {
 
 static void trigger(Action* a, Mapper* m, TriggerValue old_pos, TriggerValue pos, PadStickTrigger what) {
 	OSKAction* b = container_of(a, OSKAction, action);
+	DDEBUG("TRIGGER");
 	if ((old_pos < TRIGGER_MAX) && (pos == TRIGGER_MAX))
 		button_release(a, m);
 	else if ((old_pos == TRIGGER_MAX) && (pos < TRIGGER_MAX))
@@ -79,6 +80,7 @@ static ActionOE keyboard_action(const char* keyword, ParameterList params) {
 		if ((list_get(params, 0)->type & PT_STRING) == 0)
 			return (ActionOE)scc_new_invalid_parameter_type_error(keyword, 1, list_get(params, 0));
 	} else if (strcmp(keyword, KW_OSK_CLOSE) == 0) {
+		DDEBUG("closing the KB");
 		keyword = KW_OSK_CLOSE;
 		if (list_len(params) != 0)
 			return (ActionOE)scc_new_action_error(AEC_INVALID_VALUE, "%s takes no parameters", keyword);

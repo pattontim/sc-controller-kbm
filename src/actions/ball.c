@@ -24,8 +24,8 @@
 static ParamChecker pc;
 
 const char* KW_BALL = "ball";
-#define BALL_HAPTIC_FACTOR		60.0		/* Just magic number */
-#define BALL_DEFAULT_FRICTION	10.0
+#define BALL_HAPTIC_FACTOR		30.0		/* Just magic number */
+#define BALL_DEFAULT_FRICTION	8.0
 #define BALL_DEFAULT_MASS		80.0
 #define BALL_DEFAULT_MEAN_LEN	10
 // If finger is lifter after movement slower than MIN_LIFT_VELOCITY roll doesn't happens

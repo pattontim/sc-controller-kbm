@@ -16,6 +16,7 @@ extern "C" {
 #include "scc/utils/dll_export.h"
 #include "scc/utils/list.h"
 #include "scc/controller.h"
+#include "scc/action.h"
 #include "scc/utils/rc.h"
 #include <stdbool.h>
 
@@ -129,6 +130,9 @@ DLL_EXPORT ControllerData * sccc_get_controller_data(SCCClient* c, const char* i
  */
 #define sccc_lock(c, handle, ...) _sccc_lock(c, handle, __VA_ARGS__, NULL)
 DLL_EXPORT bool _sccc_lock(SCCClient* c, int handle, const char* src1, ...);
+
+#define sccc_observe(c, handle, ...) _sccc_observe(c, handle, __VA_ARGS__, NULL)
+DLL_EXPORT bool _sccc_observe(SCCClient* c, int handle, const char* src1, ...);
 
 /**
  * Unlocks all button, axes or pads locked by calls to sccc_lock.

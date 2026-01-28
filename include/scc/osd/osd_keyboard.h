@@ -17,6 +17,7 @@ typedef struct _OSDKeyboardClass		OSDKeyboardClass;
 
 typedef struct OSDKeyboardOptions {
 	const char*			filename;
+	const char*			observe;
 } OSDKeyboardOptions;
 
 typedef struct OSDKeyboardCallbacks {

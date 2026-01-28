@@ -12,6 +12,7 @@
 #include "scc/utils/rc.h"
 #include "scc/virtual_device.h"
 #include "scc/special_action.h"
+// #include <glib.h> // glib.h has to be included before client.h
 #include "scc/profile.h"
 #include "scc/mapper.h"
 #include "scc/config.h"
@@ -19,12 +20,16 @@
 #include "daemon.h"
 #include "errno.h"
 #include <stdlib.h>
+#include <ctype.h>
 #ifndef _WIN32
 	#include <spawn.h>
 #else
 	#include <windows.h>
 	#include <process.h>
 #endif
+
+#define TRUE 1
+#define FALSE 0
 
 typedef enum ForceEvent {
 	// TODO: Is this still needed?
@@ -216,6 +221,7 @@ static void register_keystate_repeat(Mapper* _m, Keycode b) {
 static void key_press(Mapper* _m, Keycode b, bool release_press) {
 	SCCDMapper* m = container_of(_m, SCCDMapper, mapper);
 	VirtualDevice* d = device_for_button(m, b);
+	DDEBUG("Key press: %d", b);
 	if (m->keys[b] == 0) {
 		scc_virtual_device_key_press(d, b);
 #ifdef _WIN32
@@ -223,12 +229,15 @@ static void key_press(Mapper* _m, Keycode b, bool release_press) {
 			register_keystate_repeat(_m, b);
 #endif
 	} else if (release_press) {
+		DDEBUG("Key state: %d", m->keys[b]);
 		scc_virtual_device_key_release(d, b);
 		scc_virtual_device_key_press(d, b);
 	}
 	
-	if (m->keys[b] < 0xFE)
+	if (m->keys[b] < 0xFE){
 		m->keys[b] ++;
+		DDEBUG("Key state at reset: %d", m->keys[b]);
+	}
 }
 
 static void key_release(Mapper* _m, Keycode b) {

@@ -1,17 +1,18 @@
 #!/bin/bash
 SOURCE_ROOT=$(dirname "$0")/../..
 
-function get_names {
-	while [ x"$1" != "x" ] ; do
-		grep -h "scc_actions_init_" "$SOURCE_ROOT"/"$1" \
-			| sed "s/void//" \
-			| tr -d "{(;)}\n"
+get_names() {
+	while [ -n "$1" ]; do
+		grep -h "scc_actions_init_" "$SOURCE_ROOT/$1" \
+			| sed 's/void//' \
+			| tr -d '{(;)}' \
+			| tr '\n' ' '
 		echo -n " "
 		shift
 	done
 }
 
-NAMES=$(get_names $@)
+NAMES=$(get_names "$@")
 for name in $NAMES; do
 	echo "void $name();"
 done

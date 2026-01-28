@@ -23,4 +23,5 @@ profiles
 release-reactos/
 sc-controller-*-release/
 sc-controller-*-release.zip
-
+scc/
+_temp

@@ -18,11 +18,15 @@
 #include "scc/mapper.h"
 #include "scc/tools.h"
 #include "client.h"
+#include <ctype.h>
 
 #define KEY_REPEAT_DELAY 250
 #define KEY_STICK_REPEAT_DELAY 650
 #define KEY_REPEAT_INTERVAL 33
 #define KEY_REPEAT_TIMEOUT 25000
+
+#define TRUE 1
+#define FALSE 0
 
 const char* SLAVE_MAPPER_TYPE = "slave";
 

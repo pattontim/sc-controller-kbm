@@ -137,6 +137,7 @@ static void sccd_input_libusb_dev_close(InputDevice* _dev) {
 }
 
 static int sccd_input_libusb_claim_interfaces_by(InputDevice* _dev, int cls, int subclass, int protocol) {
+	DDEBUG("CLAIMING BY LIBUSB");
 	DEV_TYPECHECK(_dev, sccd_input_libusb_dev_close, 0);
 	USBInputDevice* dev = container_of(_dev, USBInputDevice, dev);
 	

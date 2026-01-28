@@ -62,6 +62,7 @@ void sccd_on_client_command(Client* client, char* buffer, size_t len) {
 			if (b == 0)
 				return send_error(client, tokens, "Fail: invalid keycode\n");
 			if (pressed) {
+				DDEBUG("COMMAND");
 				if (!client->mapper->is_virtual_key_pressed(client->mapper, b))
 					client->mapper->key_press(client->mapper, b, false);
 			} else {
@@ -80,6 +81,7 @@ void sccd_on_client_command(Client* client, char* buffer, size_t len) {
 		if (0 == strcmp(command, "Controller:")) {
 			// Assigns controller with given ID to client
 			const char* id = iter_next(tokens);
+			DDEBUG("Daemon recieved controller ID: %s", id);
 			ListIterator it = iter_get(sccd_get_controller_list());
 			FOREACH(Controller*, c, it) {
 				if (strcmp(c->get_id(c), id) == 0) {
@@ -153,8 +155,28 @@ void sccd_on_client_command(Client* client, char* buffer, size_t len) {
 		break;
 	case 'O':
 		if (0 == strcmp(command, "Observe:")) {
-			// TODO: This
-			send_error(client, tokens, "Fail: Sniffing disabled.\n");
+			// Generates list of sources and attempts to add an observing client
+			StringList sources = list_new(char, 0);
+			list_set_dealloc_cb(sources, &free);
+			if (sources == NULL)
+				return sccd_on_client_command_oom(client);
+			while (iter_has_next(tokens)) {
+				char* source = strbuilder_cpy(iter_next(tokens));
+				bool added = (source != NULL) ? list_add(sources, source) : false;
+				if (!added) {
+					free(source);
+					list_free(sources);
+					return sccd_on_client_command_oom(client);
+				}
+			}
+			const char* failed = sccd_observe_actions(client, sources);
+			if (failed == SCCD_OOM)
+				sccd_on_client_command_oom(client);
+			else if (failed == NULL)
+				send_ok(client, tokens);
+			else
+				send_error_dealoc(client, tokens, strbuilder_fmt("Fail: Cannot observe %s\n", failed));
+			list_free(sources);
 			return;
 		}
 		break;
@@ -228,6 +250,7 @@ void sccd_on_client_command(Client* client, char* buffer, size_t len) {
 		break;
 	case 'U':
 		if (0 == strcmp(command, "Unlock.")) {
+			LOG("Unlocking actions");
 			sccd_unlock_actions(client);
 			return send_ok(client, tokens);
 		}

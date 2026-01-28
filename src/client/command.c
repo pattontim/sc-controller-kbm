@@ -15,6 +15,7 @@
 
 /** Returns 1 if message was parsed and handled, -1 on OOM error */
 int on_command(struct _SCCClient* c, char* msg) {
+	// DDEBUG("controller event: %s", msg);
 	Tokens* tokens = tokenize(msg);
 	if (tokens == NULL) {
 		LERROR("OOM error while parsing message. Closing connection");
@@ -22,6 +23,15 @@ int on_command(struct _SCCClient* c, char* msg) {
 	}
 	tokens_auto_skip_whitespace(tokens);
 	const char* command = iter_next(tokens);
+
+	// TODO REMOVE THIS SLOW BS
+	// only debug msg if LPAD or RPAD not in msg
+	if(command[0] == '#' || 0 == strcmp(command, "Event:") && !(strstr(msg, "LPAD") == NULL && strstr(msg, "RPAD") == NULL)) {
+		// DDEBUG("controller event: %s", msg);
+	} else {
+		DEBUG("controller event: %s", msg);
+	}
+
 	switch (command[0]) {
 	// Missing:
 	// elif line.startswith("Ready."):

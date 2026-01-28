@@ -57,7 +57,7 @@ static void osd_window_class_init(OSDWindowClass *klass) {
 					g_cclosure_marshal_VOID__INT, G_TYPE_NONE, 1, G_TYPE_INT);
 }
 
-void get_safe_window_position(GdkRectangle *monitor_rect, GdkRectangle *window_rect, int mouse_x, int mouse_y, int *safe_x, int *safe_y) {
+static void get_safe_window_position(GdkRectangle *monitor_rect, GdkRectangle *window_rect, int mouse_x, int mouse_y, int *safe_x, int *safe_y) {
     int width, height;
     width = window_rect->width;
 	height = window_rect->height;
@@ -154,9 +154,8 @@ static void osd_window_show(GtkWidget* widget) {
 	SetWindowLong(hwnd, GWL_EXSTYLE, style | WS_EX_TRANSPARENT | WS_EX_LAYERED | WS_EX_NOACTIVATE);
 	SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
 	gtk_widget_set_opacity(widget, 0.60);
-	gtk_window_show(widget);
 #else
-	gtk_window_show(widget);
+	// gtk_window_show(widget);
 	/*
 	Display* dpy = gdk_x11_get_default_xdisplay();
 	ASSERT(dpy != NULL);
@@ -171,8 +170,8 @@ static void osd_window_show(GtkWidget* widget) {
 	*/
 #endif
 	GdkRectangle osd_rect = {x, y, 0, 0};
-	osd_rect.width = gtk_widget_get_allocated_width(widget) * monitor_scale_factor;
-	osd_rect.height = gtk_widget_get_allocated_height(widget) * monitor_scale_factor;
+	osd_rect.width = gtk_widget_get_allocated_width(widget) * 0.3;
+	osd_rect.height = gtk_widget_get_allocated_height(widget) * 0.3;
 	// DDEBUG("osd size: %d, %d", osd_rect.width, osd_rect.height);
 
 	get_safe_window_position(&monitor_rect, &osd_rect, xm, ym, &x, &y);
@@ -181,7 +180,13 @@ static void osd_window_show(GtkWidget* widget) {
 	y = y > 0 ? y : 0;
 	// DDEBUG("osd position: %d, %d", x, y);
 
-	gtk_window_move(GTK_WINDOW(widget), x, y);	
+	// gtk_widget_set_size_request(widget, osd_rect.width, osd_rect.height);
+
+	gtk_window_move(GTK_WINDOW(widget), x, y);
+	// gtk_window_set_scale_factor(GTK_WINDOW(widget), monitor_scale_factor);
+
+	gtk_window_show(widget);
+
 }
 
 OSDWindow* osd_window_new(const char* wmclass, const OSDWindowCallbacks callbacks) {
@@ -208,7 +213,7 @@ void osd_window_setup(OSDWindow* osdwin, const char* wmclass, const OSDWindowCal
 	gtk_window_set_skip_taskbar_hint(GTK_WINDOW(osdwin), TRUE);
 	gtk_window_set_skip_pager_hint(GTK_WINDOW(osdwin), TRUE);
 	gtk_window_set_keep_above(GTK_WINDOW(osdwin), TRUE);
-	gtk_window_set_type_hint(GTK_WINDOW(osdwin), GDK_WINDOW_TYPE_HINT_NOTIFICATION);
+	gtk_window_set_type_hint(GTK_WINDOW(osdwin), GDK_WINDOW_TYPE_HINT_DOCK);
 }
 
 void osd_window_exit(OSDWindow* osdwin, int code) {
