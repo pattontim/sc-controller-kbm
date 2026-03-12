@@ -15,6 +15,7 @@
 #include "scc/tools.h"
 #include "sc.h"
 #include <stddef.h>
+#include <stdio.h>
 
 #define ENDPOINT			3
 #define CONTROLIDX			-1
@@ -229,17 +230,29 @@ static bool hotplug_cb(Daemon* daemon, const InputDeviceData* idata) {
 		}
 	}
 	//TODO fix serial grabbing
+	/* For Bluetooth devices, serial reading may fail due to HID communication issues.
+	   Try to read serial */
 	if (!read_serial(sc)) {
-		LERROR("Failed to read serial number");
+		LERROR("Failed to read serial number for Bluetooth controller");
+		goto hotplug_cb_failed_to_configure;
+		// WARN("Failed to read serial number for Bluetooth controller, using default");
+		/* Generate a synthetic serial based on vendor:product */
+		// bad idea
+		//snprintf(sc->serial, sizeof(sc->serial), "BT%04x%04x", VENDOR_ID, PRODUCT_ID);
+	}
+	// only needed on windows, do anyways on linux
+	if (!clear_mappings(sc)) {
+		LERROR("Failed to clear mappings on Bluetooth controller, continuing anyway");
 		goto hotplug_cb_failed_to_configure;
 	}
-	//TODO needed?
-	if (!clear_mappings(sc))
-		// clear_mappings is needed on Windows, as kernel driver cannot be deatached there
+	if (!configure(sc)) {
+		LERROR("Failed to configure Bluetooth controller via feature reports");
 		goto hotplug_cb_failed_to_configure;
-	if (!configure(sc))
+	}
+	if (!dev->interupt_read_loop(dev, ENDPOINT, PACKET_SIZE, &input_interrupt_cb, sc)) {
+		LERROR("Failed to setup interrupt read loop");
 		goto hotplug_cb_failed_to_configure;
-	if (!dev->interupt_read_loop(dev, ENDPOINT, PACKET_SIZE, &input_interrupt_cb, sc))
+	}
 	DEBUG("New BLE Steam Controller with serial %s connected", sc->serial);
 	sc->state = SS_READY;
 	if (!daemon->controller_add(&sc->controller)) {
@@ -263,19 +276,36 @@ static bool driver_start(Driver* drv, Daemon* daemon) {
 	HotplugFilter filter_vendor  = { .type=SCCD_HOTPLUG_FILTER_VENDOR,	.vendor=VENDOR_ID };
 	HotplugFilter filter_product = { .type=SCCD_HOTPLUG_FILTER_PRODUCT,	.product=PRODUCT_ID };
 	HotplugFilter filter_idx	 = { .type=SCCD_HOTPLUG_FILTER_IDX,		.idx=CONTROLIDX };
-	Subsystem s = HIDAPI;
 #if defined(_WIN32)
 	#define FILTERS &filter_vendor, &filter_product, &filter_idx
-#elif defined(__BSD__)
-	#define FILTERS &filter_vendor, &filter_product, &filter_idx
-	s = UHID;
-#else
-	#define FILTERS &filter_vendor, &filter_product
-#endif
-	if (!daemon->hotplug_cb_add(s, hotplug_cb, FILTERS, NULL)) {
+	if (!daemon->hotplug_cb_add(HIDAPI, hotplug_cb, FILTERS, NULL)) {
 		LERROR("Failed to register hotplug callback");
 		return false;
 	}
+#elif defined(__BSD__)
+	#define FILTERS &filter_vendor, &filter_product, &filter_idx
+	if (!daemon->hotplug_cb_add(UHID, hotplug_cb, FILTERS, NULL)) {
+		LERROR("Failed to register hotplug callback");
+		return false;
+	}
+#else
+	/* Linux: Register for both HIDAPI and BT subsystems.
+	   On Linux, Bluetooth devices detected via input subsystem are classified as:
+	   - HIDAPI if use-hidapi is enabled (preferred for better compatibility)
+	   - BT if use-hidapi is disabled */
+	#define FILTERS &filter_vendor, &filter_product
+	if (daemon->get_hidapi_enabled()) {
+		if (!daemon->hotplug_cb_add(HIDAPI, hotplug_cb, FILTERS, NULL)) {
+			LERROR("Failed to register hotplug callback for HIDAPI");
+			return false;
+		}
+	}
+	/* Also always register for BT subsystem for Bluetooth devices that might not be detected via HIDAPI */
+	if (!daemon->hotplug_cb_add(BT, hotplug_cb, FILTERS, NULL)) {
+		LERROR("Failed to register hotplug callback for BT");
+		return false;
+	}
+#endif
 	return true;
 }
 

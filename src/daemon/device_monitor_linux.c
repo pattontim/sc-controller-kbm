@@ -17,10 +17,12 @@
 #include <string.h>
 #include <stdio.h>
 #include <fcntl.h>
+#include <ctype.h>
 static struct udev* ctx;
 static struct udev_monitor* monitor;
 
 static bool get_vendor_product(const char* subsystem, const char* syspath, Vendor* vendor, Product* product);
+static bool get_bluetooth_vendor_product(const char* syspath, Vendor* vendor, Product* product);
 
 struct LinuxInputDeviceData {
 	InputDeviceData		idev;
@@ -37,6 +39,9 @@ static int input_device_get_idx(const InputDeviceData* idev) {
 static InputDevice* input_device_open(const InputDeviceData* idev) {
 #ifdef USE_HIDAPI
 	if (idev->subsystem == HIDAPI)
+		return sccd_input_hidapi_open(idev->path);
+	if (idev->subsystem == BT)
+		/* Bluetooth devices are opened via HIDAPI using bluetooth://vendor:product format */
 		return sccd_input_hidapi_open(idev->path);
 #endif
 #ifdef USE_LIBUSB
@@ -139,6 +144,43 @@ static InputDeviceData* input_device_copy(const InputDeviceData* idev) {
 	return &copy->idev;
 }
 
+/**
+ * For Bluetooth input devices appearing in /sys/.../input/ paths,
+ * extracts vendor and product IDs from the sysfs path.
+ * 
+ * Bluetooth HID devices have paths like:
+ * /sys/devices/virtual/misc/uhid/0005:28DE:1106.007F/input/input2093/event19
+ * where 28DE is vendor and 1106 is product ID.
+ * 
+ * Returns true if IDs were successfully extracted.
+ */
+static bool get_bluetooth_vendor_product(const char* syspath, Vendor* vendor, Product* product) {
+	/* Search for pattern XXXX:YYYY:ZZZZ where YYYY:ZZZZ are vendor:product */
+	const char* ptr = syspath;
+	while (*ptr != '\0') {
+		/* Look for hex digits followed by colon */
+		if (isxdigit(ptr[0]) && isxdigit(ptr[1]) && isxdigit(ptr[2]) && 
+		    isxdigit(ptr[3]) && ptr[4] == ':' &&
+		    isxdigit(ptr[5]) && isxdigit(ptr[6]) && isxdigit(ptr[7]) && 
+		    isxdigit(ptr[8]) && ptr[9] == ':') {
+			/* Found pattern XXXX:YYYY: - extract YYYY:ZZZZ */
+			char vendor_str[5];
+			char product_str[5];
+			strncpy(vendor_str, ptr + 5, 4);
+			vendor_str[4] = '\0';
+			strncpy(product_str, ptr + 10, 4);
+			product_str[4] = '\0';
+			
+			*vendor = (Vendor)strtol(vendor_str, NULL, 16);
+			*product = (Product)strtol(product_str, NULL, 16);
+			DDEBUG("Extracted Bluetooth vendor:product from path: %04x:%04x", *vendor, *product);
+			return true;
+		}
+		ptr++;
+	}
+	return false;
+}
+
 
 static void on_new_syspath(Daemon* d, const char* subsystem, const char* syspath) {
 	static struct LinuxInputDeviceData ldata = {
@@ -152,14 +194,27 @@ static void on_new_syspath(Daemon* d, const char* subsystem, const char* syspath
 		}
 	};
 	
+	static char synthetic_path[256];
 	ldata.idev.path = syspath;
+	
 	if (strcmp(subsystem, "input") == 0) {
-		// TODO: Bluetooth here?
-		DDEBUG("New device detected in input subsystem: %s", syspath);
-		DDEBUG("TODO bluetooth here?");
-		*((Subsystem*)&ldata.idev.subsystem) = EVDEV;
-		ldata.product = -1;
-		ldata.vendor = -1;
+		/* Try to detect if this is a Bluetooth device by extracting vendor/product */
+		if (get_bluetooth_vendor_product(syspath, &ldata.vendor, &ldata.product)) {
+			/* This is a Bluetooth HID device.
+			   Classify as BT subsystem. Create a synthetic path with vendor:product
+			   so the HIDAPI open function can enumerate and open by ID. */
+			DDEBUG("Bluetooth device detected in input subsystem: %s", syspath);
+			snprintf(synthetic_path, sizeof(synthetic_path), "bluetooth://%04x:%04x",
+					ldata.vendor, ldata.product);
+			ldata.idev.path = synthetic_path;
+			*((Subsystem*)&ldata.idev.subsystem) = BT;
+		} else {
+			/* Regular evdev device with no vendor/product info */
+			DDEBUG("Regular input device (evdev): %s", syspath);
+			*((Subsystem*)&ldata.idev.subsystem) = EVDEV;
+			ldata.product = -1;
+			ldata.vendor = -1;
+		}
 	} else {
 		if (!get_vendor_product(subsystem, syspath, &ldata.vendor, &ldata.product))
 			return;

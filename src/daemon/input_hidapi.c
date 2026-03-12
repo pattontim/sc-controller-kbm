@@ -16,6 +16,7 @@
 #include "./hidapi.h"
 #include "daemon.h"
 #include <stdlib.h>
+#include <stdio.h>
 
 #define BUFFER_MAX 256
 #define SMALL_BUFFER_MAX 64
@@ -103,6 +104,7 @@ static uint8_t* sccd_input_hidapi_hid_request(InputDevice* _dev, int16_t idx, ui
 	bool use_same_buffer = false;
 	uint16_t length;
 	int err;
+	int send_length = 0;
 	if (_length < 0) {
 		use_same_buffer = true;
 		length = (uint16_t)(-_length);
@@ -141,28 +143,75 @@ static uint8_t* sccd_input_hidapi_hid_request(InputDevice* _dev, int16_t idx, ui
 	}
 #endif
 	
+	// For Bluetooth feature reports, use a smaller buffer (20 bytes max, like in Python reference)
+	// This matches what hid returns and is required for proper feature report operation
+	unsigned char small_buffer[21];  // 20 bytes + 1 for report ID
+	unsigned char* feat_buffer = buffer;
+	int feat_length = length;
+	
 	//TODO dont rely on IDX -1 quirk for BT report ID, test other controllers
+	// Prepare buffer with report ID handling
+#ifdef _WIN32
+	// Windows: Include report ID in buffer  
 	buffer[0] = (idx == -1 ? 0x03 : 0x00);
 	memcpy(&buffer[1], data, length);
+	send_length = length + 1;
+#else
+	// Linux: For Bluetooth, use smaller buffer; for USB, use full buffer
+	if (idx == -1) {
+		// Bluetooth: Use 20-byte feature report (standard for BT HID)
+		small_buffer[0] = 0x03;  // Report ID 3
+		uint16_t copy_len = length < 20 ? length : 20;
+		memcpy(&small_buffer[1], data, copy_len);
+		// Pad with zeros if needed
+		if (copy_len < 20) {
+			memset(&small_buffer[1 + copy_len], 0, 20 - copy_len);
+		}
+		feat_buffer = small_buffer;
+		feat_length = 21;  // 20 + 1 for report ID
+		send_length = 21;
+	} else {
+		// USB: Use full buffer size
+		buffer[0] = 0x00;
+		memcpy(&buffer[1], data, length);
+		send_length = length + 1;
+		feat_buffer = buffer;
+		feat_length = send_length;
+	}
+#endif
 	if (dev->idx != -42 && dev->idx != idx) {
 		LERROR("sccd_input_hid_request: trying to send request to "
 				"different idx than device was originally opened for (%i != %i)",
 				dev->idx, idx);
 		return NULL;
 	}
-	err = hid_send_feature_report(dev->hid, buffer, length + 1);
+	
+	// Log the feature report being sent for debugging
+	// DDEBUG("HID FRequest: idx=%d, send_length=%d, buffer_type=%s, data[0..7]: %02X %02X %02X %02X %02X %02X %02X %02X",
+	// 	idx, feat_length, (idx == -1) ? "BT_20B" : "USB_FULL", 
+	// 	feat_buffer[0], feat_buffer[1], feat_buffer[2], feat_buffer[3], 
+	// 	feat_buffer[4], feat_buffer[5], feat_buffer[6], feat_buffer[7]);
+	
+	err = hid_send_feature_report(dev->hid, feat_buffer, feat_length);
 	if (err < 0) {
 		wcstombs((char*)buffer, hid_error(dev->hid), ACTUAL_BUFFER);
 		LERROR("sccd_input_hid_request: hid_send_feature_report failed: %s", buffer);
 		goto sccd_input_hid_request_fail;
 	}
-	err = hid_get_feature_report(dev->hid, buffer, length + 1);
+	// DDEBUG("hid_send_feature_report succeeded: sent %d bytes", err);
+	
+	err = hid_get_feature_report(dev->hid, feat_buffer, feat_length);
 	if (err < 0) {
 		wcstombs((char*)buffer, hid_error(dev->hid), ACTUAL_BUFFER);
-		LERROR("sccd_input_hid_request: hid_get_feautre_report failed: %s", buffer);
+		LERROR("sccd_input_hid_request: hid_get_feature_report failed: %s", buffer);
 		goto sccd_input_hid_request_fail;
 	}
-	memcpy(out_buffer, &buffer[1], length);
+	// DDEBUG("hid_get_feature_report succeeded: received %d bytes, response[0..7]: %02X %02X %02X %02X %02X %02X %02X %02X",
+		// err, feat_buffer[0], feat_buffer[1], feat_buffer[2], feat_buffer[3], 
+		// feat_buffer[4], feat_buffer[5], feat_buffer[6], feat_buffer[7]);
+	
+	// Copy response back (skip first byte which is report ID)
+	memcpy(out_buffer, &feat_buffer[1], length);
 	return out_buffer;
 	
 sccd_input_hid_request_fail:
@@ -210,27 +259,64 @@ static void sccd_input_hidapi_mainloop(Daemon* d) {
 
 InputDevice* sccd_input_hidapi_open(const char* syspath) {
 	DDEBUG("USING HIDAPI");
+
+	// I haven't really vetted the BT thru HIDAPI code much, but it works
+	/* Check if this is a Bluetooth URI (device_monitor_linux.c format) */
+	hid_device* hid = NULL;
+	int interface_number = -1;
+	if (strncmp(syspath, "bluetooth://", 12) == 0) {
+		/* Parse "bluetooth://XXXX:YYYY" format */
+		unsigned int vendor_id, product_id;
+		if (sscanf(syspath + 12, "%x:%x", &vendor_id, &product_id) == 2) {
+			DDEBUG("Opening Bluetooth device via HIDAPI enumerate: %04x:%04x", vendor_id, product_id);
+			
+			/* Enumerate all HID devices and find matching vendor/product */
+			struct hid_device_info* lst = hid_enumerate((unsigned short)vendor_id, (unsigned short)product_id);
+			struct hid_device_info* dev_info = lst;
+			
+			/* Try to open the first matching device */
+			if (dev_info != NULL) {
+				hid = hid_open_path(dev_info->path);
+				interface_number = dev_info->interface_number;
+				DDEBUG("Found device at path: %s (interface: %d)", dev_info->path, interface_number);
+			}
+			
+			hid_free_enumeration(lst);
+			
+			if (hid == NULL) {
+				LERROR("Failed to open Bluetooth device %s: hid_enumerate/hid_open_path failed", syspath);
+				return NULL;
+			}
+		} else {
+			LERROR("Invalid Bluetooth URI format: %s", syspath);
+			return NULL;
+		}
+	} else {
+		/* Regular path-based opening */
 #ifdef _WIN32
-	char device_path[1024];
-	// Get original DevicePath from fake syspath generated by device monitor
-	strncpy(device_path, syspath + 8, 1023);
-	scc_path_break_slashes(device_path);
+		char device_path[1024];
+		// Get original DevicePath from fake syspath generated by device monitor
+		strncpy(device_path, syspath + 8, 1023);
+		scc_path_break_slashes(device_path);
 #else
-	const char* device_path = syspath;
+		const char* device_path = syspath;
 #endif
+		
+		hid = hid_open_path(device_path);
+		if (hid == NULL) {
+			LERROR("Failed to open device %s: hid_open_path failed", device_path);
+			return NULL;
+		}
+	}
+	
+	DDEBUG("Successfully opened device %s", syspath);
 	
 	HidapiInputDevice* dev = malloc(sizeof(HidapiInputDevice));
 	if (dev == NULL) {
-		LERROR("Failed to open device %s: out of memory", device_path);
+		LERROR("Failed to open device %s: out of memory", syspath);
+		hid_close(hid);
 		return NULL;
 	}
-	hid_device* hid = hid_open_path(device_path);
-	if (hid == NULL) {
-		LERROR("Failed to open device %s: hid_open_path failed", device_path);
-		free(dev);
-		return NULL;
-	}
-	DDEBUG("successfully opened device %s", device_path);
 	
 	dev->hid = hid;
 	*((Subsystem*)(&dev->dev.sys)) = HIDAPI;
@@ -242,6 +328,12 @@ InputDevice* sccd_input_hidapi_open(const char* syspath) {
 	dev->idata.buffer = NULL;
 	dev->idx = -1;
 	// TODO: Idx in BSD / Linux?
+	
+	/* For Bluetooth devices opened via enumerate, use the interface number */
+	if (interface_number >= 0) {
+		dev->idx = interface_number;
+		DDEBUG("Set device idx to %d from interface_number", dev->idx);
+	}
 	
 #ifdef _WIN32
 	char* interface_component = strstr(device_path, "&mi_");
