@@ -25,7 +25,8 @@ client_lib = shared_library('scc-client',
 		'controller.c',
 		'command.c',
 		'socket.c',
-	]
+	],
+	install: true,
 )
 
 slave_mapper_lib = shared_library('scc-slave-mapper',
@@ -38,7 +39,8 @@ slave_mapper_lib = shared_library('scc-slave-mapper',
 	],
 	sources: [
 		'slave_mapper.c',
-	]
+	],
+	install: true
 )
 
 gio_client_lib = shared_library('scc-gio-client',
@@ -50,6 +52,7 @@ gio_client_lib = shared_library('scc-gio-client',
 	],
 	sources: [
 		'gio.c',
-	]
+	],
+	install: true,
 )
 

@@ -252,6 +252,7 @@ static bool hotplug_cb(Daemon* daemon, const InputDeviceData* idata) {
 hotplug_cb_failed_to_configure:
 	LERROR("Failed to configure controlller");
 hotplug_cb_fail:
+	DEBUG("Failed to initialize controller");
 	if (sc != NULL)
 		free(sc);
 	dev->close(dev);

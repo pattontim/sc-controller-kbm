@@ -74,16 +74,21 @@ static bool config_load_json_file(struct _Config* c, int fd, char* error_return)
 }
 
 Config* config_load() {
-	DDEBUG("Loading cofig generic way (json)");
+	DEBUG("Loading cofig generic way (json)");
 	char error_return[SCC_CONFIG_ERROR_LIMIT];
 	struct _Config* c = config_new();
-	if (c == NULL) return NULL;
+	if (c == NULL){
+		DEBUG("Failed to allocate config struct");
+		return NULL;
+	} 
 	
 	StrBuilder* sb = strbuilder_new();
 	strbuilder_add(sb, scc_get_config_path());
 	strbuilder_add_path(sb, CONFIG_FILENAME);
-	if (strbuilder_failed(sb))
+	if (strbuilder_failed(sb)){
+		DEBUG("Failed to construct config filename");
 		goto config_load_fail;
+	}
 	
 	c->filename = strbuilder_consume(sb);
 	int fd = open(c->filename, O_RDONLY);
@@ -94,14 +99,18 @@ Config* config_load() {
 	}
 	if (c->ctx == NULL) {
 		c->ctx = aojls_deserialize("{}", 2, NULL);
-		if (c->ctx == NULL)
+		if (c->ctx == NULL){
+			DEBUG("Failed to create empty config");
 			goto config_load_fail;
+		}
 		// json_object* root = json_make_object(c->ctx);
 	}
 	
+	DEBUG("Config loaded successfully");
 	return &c->config;
 	
 config_load_fail:
+	DEBUG("Failed to load config in general");
 	config_dealloc(&c->config);
 	return NULL;
 }

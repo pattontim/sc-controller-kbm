@@ -23,6 +23,7 @@ osd_keyboard_lib = shared_library('scc-osd-keyboard',
 		'data.c',
 		'actions.c',
 		'display.c',
-	]
+	],
+	install: true,
 )
 

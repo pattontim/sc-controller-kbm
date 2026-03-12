@@ -12,7 +12,8 @@ osd_menu_lib = shared_library('scc-osd-menu',
 	sources: [
 		'menu.c',
 		'stick_controller.c',
-	]
+	],
+	install: true,
 )
 
 common_deps = [ dependency('gtk+-3.0', version: '>=3.22.0') ]
@@ -24,6 +25,7 @@ osd_menu_vmenu_lib = shared_library('scc-osd-menu-vmenu',
 	link_with: common_link,
 	dependencies: common_deps,
 	sources: [ 'vmenu.c' ],
+	install: true,
 )
 
 
@@ -32,6 +34,7 @@ osd_menu_hmenu_lib = shared_library('scc-osd-menu-hmenu',
 	link_with: common_link,
 	dependencies: common_deps,
 	sources: [ 'hmenu.c' ],
+	install: true,
 )
 
 
@@ -49,6 +52,7 @@ osd_menu_radial_menu_lib = shared_library('scc-osd-menu-radialmenu',
 	link_with: common_link + [ config_lib ],
 	dependencies: common_deps + radial_deps,
 	sources: [ 'radial_menu.c' ],
+	install: true,
 )
 
 
@@ -57,5 +61,6 @@ osd_menu_grid_menu_lib = shared_library('scc-osd-menu-gridmenu',
 	link_with: common_link + [ parser_lib ],
 	dependencies: common_deps + [ meson.get_compiler('c').find_library('m') ],
 	sources: [ 'grid_menu.c' ],
+	install: true,
 )
 

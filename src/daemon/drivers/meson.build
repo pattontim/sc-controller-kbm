@@ -3,17 +3,32 @@ if host_machine.system() == 'windows'
 	remotepad_deps = [
 		meson.get_compiler('c').find_library('wsock32'),
 	]
+	drv_install_dir = 'lib/scc/drivers'
 else
 	libc = meson.get_compiler('c').find_library('c')
 	deps = [ libc ]
 	remotepad_deps = [ libc ]
+	drv_install_dir = 'lib/scc/drivers'
 endif
 
+shared_library('scc-drv-sc_by_bt',
+	include_directories: [ include ],
+	link_with: [ utils_lib, config_lib ],
+	dependencies: deps,
+	install: true,
+	install_dir: drv_install_dir,
+	sources: [
+		'sc/common.c',
+		'sc/by_bt.c',
+	]
+)
 
 shared_library('scc-drv-sc_by_cable',
 	include_directories: [ include ],
 	link_with: [ utils_lib, config_lib ],
 	dependencies: deps,
+	install: true,
+	install_dir: drv_install_dir,
 	sources: [
 		'sc/common.c',
 		'sc/by_cable.c',
@@ -24,6 +39,8 @@ shared_library('scc-drv-sc_dongle',
 	include_directories: [ include ],
 	link_with: [ utils_lib, config_lib ],
 	dependencies: deps,
+	install: true,
+	install_dir: drv_install_dir,
 	sources: [
 		'sc/common.c',
 		'sc/dongle.c',
@@ -34,6 +51,8 @@ shared_library('scc-drv-steamdeck',
 	include_directories: [ include ],
 	link_with: [ utils_lib, config_lib ],
 	dependencies: deps,
+	install: true,
+	install_dir: drv_install_dir,
 	sources: [
 		'sc/common.c',
 		'sc/steamdeck.c',
@@ -44,6 +63,8 @@ shared_library('scc-drv-remotepad',
 	include_directories: [ include ],
 	link_with: [ utils_lib ],
 	dependencies: remotepad_deps,
+	install: true,
+	install_dir: drv_install_dir,
 	sources: [
 		'remotepad/remotepad.c',
 		'remotepad/remotepad_controller.c',
@@ -53,6 +74,8 @@ shared_library('scc-drv-remotepad',
 shared_library('scc-drv-fake',
 	include_directories: [ include ],
 	link_with: [ utils_lib ],
+	install: true,
+	install_dir: drv_install_dir,
 	sources: [
 		'fake/fake.c',
 		'fake/fake_controller.c',
@@ -67,6 +90,8 @@ if host_machine.system() == 'linux'
 			dependency('zlib'),
 		],
 		link_with: [ utils_lib, tools_lib, config_lib ],
+		install: true,
+		install_dir: drv_install_dir,
 		sources: [
 			'generic/common.c',
 			'generic/evdev.c',
@@ -83,6 +108,8 @@ if host_machine.system() == 'windows'
 			dependency('zlib'),
 		],
 		link_with: [ utils_lib, tools_lib, config_lib ],
+		install: true,
+		install_dir: drv_install_dir,
 		sources: [
 			'generic/common.c',
 			'generic/dinput.c',
@@ -93,6 +120,8 @@ if host_machine.system() == 'windows'
 		include_directories: [ include ],
 		link_with: [ utils_lib, config_lib ],
 		dependencies: deps,
+		install: true,
+		install_dir: drv_install_dir,
 		sources: [
 			'sc/common.c',
 			'sc/by_bt.c',

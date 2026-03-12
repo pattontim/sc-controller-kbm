@@ -263,6 +263,7 @@ static inline void debug_packet(char* buffer, size_t size) {
 }
 
 bool read_serial(SCController* sc) {
+	DDEBUG("Reading serial number");
 	Config* c = config_load();
 	if ((c != NULL) && (config_get_int(c, "ignore_serials") == 1)) {
 		// Special exception for cases when controller drops instead of
@@ -326,11 +327,13 @@ bool read_serial(SCController* sc) {
 	if (sc->type != SC_BT && (data[0] != PT_GET_SERIAL) && (data[1] != PL_GET_SERIAL)) {
 		// Sometimes, freshly connected controller is not able to send its own
 		// serial straight away
+		DDEBUG("Failed to retrieve serial number, wrong response packet");
 		return false;
 	} 
 	if (sc->type == SC_BT && data[4] == 0) {
 		//TODO flush so don't have to reset controller
 		// debug_packet((char *)data, data_size);
+		DDEBUG("Failed to retrieve serial number, controller returned empty serial");
 		return false;
 	}
 	data[13 + bt_offset] = 0;	// to terminate string

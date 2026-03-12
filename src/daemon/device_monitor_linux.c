@@ -155,6 +155,8 @@ static void on_new_syspath(Daemon* d, const char* subsystem, const char* syspath
 	ldata.idev.path = syspath;
 	if (strcmp(subsystem, "input") == 0) {
 		// TODO: Bluetooth here?
+		DDEBUG("New device detected in input subsystem: %s", syspath);
+		DDEBUG("TODO bluetooth here?");
 		*((Subsystem*)&ldata.idev.subsystem) = EVDEV;
 		ldata.product = -1;
 		ldata.vendor = -1;
@@ -377,12 +379,15 @@ void sccd_device_monitor_rescan() {
 			continue;
 		switch (sys) {
 			case USB:
+				DDEBUG("Rescanning USB subsystem");
 				sccd_device_monitor_rescan_subsystem(d, "usb");
 				break;
 			case BT:
+				DDEBUG("Rescanning Bluetooth subsystem");
 				sccd_device_monitor_rescan_subsystem(d, "bluetooth");
 				break;
 			case EVDEV:
+				DDEBUG("Rescanning EVDEV subsystem");
 				sccd_device_monitor_rescan_subsystem(d, "input");
 				break;
 		}

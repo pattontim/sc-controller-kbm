@@ -6,28 +6,34 @@ scc_osd_daemon = executable('scc-osd-daemon',
 	include_directories: include,
 	link_with: [ tools_lib, utils_lib, osd_menu_lib, osd_keyboard_lib,
 					config_lib, client_lib, gio_client_lib ],
+	link_args: ['-Wl,-rpath,/app/lib', '-Wl,-rpath,/usr/lib/x86_64-linux-gnu'],
 	dependencies: [ dependency('gtk+-3.0', version: '>=3.22.0') ],
 	sources: [
 		'osd-daemon.c',
 	],
+	install: true,
 )
 
 scc_osd_menu = executable('scc-osd-menu',
 	include_directories: include,
 	link_with: [ tools_lib, utils_lib, osd_menu_lib ],
+	link_args: ['-Wl,-rpath,/app/lib', '-Wl,-rpath,/usr/lib/x86_64-linux-gnu'],
 	dependencies: [ dependency('gtk+-3.0', version: '>=3.22.0') ],
 	sources: [
 		'osd-menu.c',
 	],
+	install: true,
 )
 
 scc_osd_keyboard = executable('scc-osd-keyboard',
 	include_directories: include,
 	link_with: [ utils_lib, osd_keyboard_lib ],
+	link_args: ['-Wl,-rpath,/app/lib', '-Wl,-rpath,/usr/lib/x86_64-linux-gnu'],
 	dependencies: [ dependency('gtk+-3.0', version: '>=3.22.0') ],
 	sources: [
 		'osd-keyboard.c',
 	],
+	install: true,
 )
 
 

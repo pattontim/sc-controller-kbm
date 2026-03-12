@@ -287,6 +287,7 @@ int osd_keyboard_parse_args(OSDKeyboardOptions* options, int argc, char** argv) 
 }
 
 
+#ifdef _WIN32
 static bool update(OSDKeyboardPrivate * priv) {
 	if(GetKeyState(VK_SHIFT) & 0x8000){
 		// modifier state incorrect on Windows, store bit
@@ -297,6 +298,7 @@ static bool update(OSDKeyboardPrivate * priv) {
 	}
 	return TRUE;
 }
+#endif
 
 
 OSDKeyboard* osd_keyboard_new(OSDKeyboardOptions* options) {

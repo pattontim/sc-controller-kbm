@@ -300,6 +300,9 @@ char* scc_find_binary(const char* name) {
 #endif
 		"src/osd",
 		"src/daemon",
+		"/app/bin",			// For flatpak installs
+		"/usr/local/bin",
+		"/usr/bin",
 	};
 	
 	StrBuilder* sb = strbuilder_new();

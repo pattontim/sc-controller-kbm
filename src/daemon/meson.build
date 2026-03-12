@@ -98,6 +98,7 @@ scc_daemon = executable('scc-daemon',
 		'device_monitor.c',
 		'cemuhook_server.c',
 	],
+	install: true,
 )
 
 # scc_input_tester = executable('scc-input-tester',

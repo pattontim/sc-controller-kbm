@@ -399,12 +399,17 @@ static void unload_mappers() {
 static void load_default_profile(SCCDMapper* m) {
 	if (m == NULL) m = default_mapper;
 	if (default_profile == NULL) {
+		DDEBUG("No default profile set, trying to load from config");
 		Config* c = config_load();
 		char* recents[1];
 		int count = config_get_strings(c, "recent_profiles", (const char**)&recents, 1);
 		if ((count >= 1) || (count == -2)) {
 			// -2 means more data available. 1st value is still valid in that case
 				default_profile = scc_find_profile(recents[0]);
+		} else if (count == 0) {
+			DDEBUG("No recent profiles found in config");
+		} else {
+			WARN("Failed to load recent profiles from config");
 		}
 		RC_REL(c);
 	}

@@ -1,0 +1,19 @@
+[Unit]
+Description=SC Controller Daemon
+Documentation=https://github.com/kozec/sc-controller
+After=network.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/app/bin/scc-daemon debug
+Restart=on-failure
+RestartSec=5
+
+# Set up environment variables for the daemon
+Environment="SCC_SHARED=/app/share"
+Environment="SCC_DRIVERS=/app/lib/scc/drivers"
+Environment="LD_LIBRARY_PATH=/app/lib"
+
+[Install]
+WantedBy=graphical-session.target

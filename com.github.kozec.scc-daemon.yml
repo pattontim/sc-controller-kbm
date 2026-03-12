@@ -1,0 +1,144 @@
+app-id: com.github.kozec.scc-daemon
+runtime: org.freedesktop.Platform
+runtime-version: "23.08"
+sdk: org.freedesktop.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.rust-stable
+
+build-options:
+  cflags: -O2
+  cxxflags: -O2
+  # Diagnostic flags for troubleshooting - comment out for production builds
+  # Uncomment these for verbose build output if debugging:
+  # env:
+  #   VERBOSE: "1"
+  #   MESON_VERBOSE_BUILD: "1"
+
+command: /app/bin/scc-daemon-run.sh
+
+finish-args:
+  # Device access for USB controllers
+  - --device=all
+  # IPC for X11
+  - --share=ipc
+  # X11 socket for daemon and OSD components
+  - --socket=x11
+  # Fallback for Wayland
+  - --socket=fallback-x11
+  - --socket=wayland
+  # Needed for udev
+  - --share=network
+  # Allow access to /sys for hardware info
+  - --persist=.config/scc
+
+modules:
+  # libcheck is needed for unit testing
+  - name: libcheck
+    config-opts:
+      - --enable-shared
+    sources:
+      - type: archive
+        url: https://github.com/libcheck/check/releases/download/0.15.2/check-0.15.2.tar.gz
+        sha256: a8de4e0bacfb4d76dd1c618ded263523b53b85d92a146d8835eb1a52932fa20a
+
+  # libusb is needed for device communication
+  - name: libusb
+    config-opts:
+      - --disable-udev
+    sources:
+      - type: archive
+        url: https://github.com/libusb/libusb/releases/download/v1.0.27/libusb-1.0.27.tar.bz2
+        sha256: ffaa41d741a8a3bee244ac8e54a72ea05bf2879663c098c82fc5757853441575
+
+  # libudev is needed for device detection
+  - name: eudev
+    config-opts:
+      - --disable-rule-generator
+      - --disable-introspection
+      - --disable-keymap
+    cleanup:
+      - /bin
+      - /sbin
+      - /lib*/udev
+    sources:
+      - type: archive
+        url: https://github.com/eudev-project/eudev/releases/download/v3.2.14/eudev-3.2.14.tar.gz
+        sha256: 8da4319102f24abbf7fff5ce9c416af848df163b29590e666d334cc1927f006f
+
+  # libevdev is needed for input device handling
+  - name: libevdev
+    buildsystem: autotools
+    sources:
+      - type: archive
+        url: https://www.freedesktop.org/software/libevdev/libevdev-1.12.0.tar.xz
+        sha256: 2f729e3480695791f9482e8388bd723402b89f0eaf118057bbdea3cecee9b237
+
+  # SC-Controller daemon
+  - name: scc-daemon
+    buildsystem: meson
+    build-options:
+      env:
+        LDFLAGS: -Wl,-rpath,/app/lib
+    config-opts:
+      - --prefix=/app
+      - --bindir=/app/bin
+      - --libdir=/app/lib
+      - --datadir=/app/share
+      - --buildtype=release
+      - -Dandroid=disabled
+    cleanup:
+      - /include
+      - /lib/pkgconfig
+      - /share/man
+    post-install:
+      # Create the wrapper script that sets environment variables
+      - |
+        cat > ${FLATPAK_DEST}/bin/scc-daemon-run.sh << 'EOF'
+        #!/bin/bash
+        set -e
+        export SCC_SHARED="/app/share/scc"
+        export SCC_DRIVERS="/app/lib/scc/drivers"
+        export LD_LIBRARY_PATH="/app/lib:${LD_LIBRARY_PATH}"
+        # Ensure DISPLAY is set for X11 access
+        if [ -z "$DISPLAY" ]; then
+          export DISPLAY=:0
+        fi
+        # GTK debugging output
+        export GTK_DEBUG=""
+        mkdir -p "$SCC_DRIVERS"
+        exec /app/bin/scc-daemon "$@"
+        EOF
+      - chmod +x ${FLATPAK_DEST}/bin/scc-daemon-run.sh
+      # Create symlink for path resolution compatibility
+      - ln -sf scc-daemon ${FLATPAK_DEST}/bin/scc-daemon-wrapped
+      # Ensure profiles directory exists and copy default to user location
+      - mkdir -p ${FLATPAK_DEST}/share/scc/profiles
+      - cp ${FLATPAK_DEST}/share/scc/default_profiles/Desktop.sccprofile ${FLATPAK_DEST}/share/scc/profiles/Desktop.sccprofile
+      # Create systemd user service
+      - mkdir -p ${FLATPAK_DEST}/share/systemd/user
+      - |
+        cat > ${FLATPAK_DEST}/share/systemd/user/scc-daemon.service << 'EOF'
+        [Unit]
+        Description=SC Controller Daemon
+        Documentation=https://github.com/pattontim/sc-controller
+        After=network.target
+        PartOf=graphical-session.target
+
+        [Service]
+        Type=simple
+        ExecStart=/app/bin/scc-daemon-run.sh debug
+        Restart=on-failure
+        RestartSec=5
+        Environment="SCC_SHARED=/app/share/scc"
+        Environment="SCC_DRIVERS=/app/lib/scc/drivers"
+        Environment="LD_LIBRARY_PATH=/app/lib"
+        Environment="DISPLAY=:0"
+
+        [Install]
+        WantedBy=graphical-session.target
+        EOF
+      # Ensure /app/lib/scc/drivers directory exists
+      - mkdir -p ${FLATPAK_DEST}/lib/scc/drivers
+    sources:
+      - type: dir
+        path: .

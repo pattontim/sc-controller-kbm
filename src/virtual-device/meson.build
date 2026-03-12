@@ -4,6 +4,7 @@ if get_option('x11-output').enabled() or host_machine.system() == 'openbsd' or h
 	virtual_device_lib = shared_library('scc-virtual-device',
 		link_with: [ utils_lib, conversions_lib ],
 		include_directories: include,
+		install: true,
 		dependencies: [
 			dependency('xtst'),
 			dependency('x11'),
@@ -19,6 +20,7 @@ elif host_machine.system() == 'linux'
 	virtual_device_lib = shared_library('scc-virtual-device',
 		link_with: [ utils_lib, conversions_lib ],
 		include_directories: include,
+		install: true,
 		dependencies: [ libm ],
 		sources: [
 			'uinput/common.c',
@@ -42,6 +44,7 @@ elif host_machine.system() == 'windows'
 	virtual_device_lib = shared_library('scc-virtual-device',
 		include_directories: [include, include_directories('uinput-win32/vigemclient/include')],
 		link_with: [ utils_lib, conversions_lib, libvigemclient ],
+		install: true,
 		dependencies: [ libm ],
 		sources: [
 			'uinput-win32/common.c',
