@@ -72,6 +72,13 @@ modules:
       - type: archive
         url: https://www.freedesktop.org/software/libevdev/libevdev-1.12.0.tar.xz
         sha256: 2f729e3480695791f9482e8388bd723402b89f0eaf118057bbdea3cecee9b237
+  
+  - name: hidapi
+    buildsystem: cmake-ninja
+    sources:
+     - type: archive
+       url: https://github.com/libusb/hidapi/archive/refs/tags/hidapi-0.12.0.zip
+       sha256: d6b8cdf18cdee5ac5213999943a4b8a30c0443211cea4f831437706ffb71d4cd
 
   # SC-Controller daemon
   - name: scc-daemon

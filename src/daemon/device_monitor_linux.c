@@ -390,6 +390,12 @@ void sccd_device_monitor_rescan() {
 				DDEBUG("Rescanning EVDEV subsystem");
 				sccd_device_monitor_rescan_subsystem(d, "input");
 				break;
+#ifdef USE_HIDAPI
+			case HIDAPI:
+				DDEBUG("Rescanning HIDAPI subsystem");
+				sccd_input_hidapi_rescan();
+				break;
+#endif
 		}
 	}
 }

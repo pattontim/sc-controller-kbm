@@ -95,19 +95,40 @@ static bool driver_start(Driver* drv, Daemon* daemon) {
 	HotplugFilter filter_vendor  = { .type=SCCD_HOTPLUG_FILTER_VENDOR,	.vendor=VENDOR_ID };
 	HotplugFilter filter_product = { .type=SCCD_HOTPLUG_FILTER_PRODUCT,	.product=PRODUCT_ID };
 	HotplugFilter filter_idx	 = { .type=SCCD_HOTPLUG_FILTER_IDX,		.idx=CONTROLIDX };
-	Subsystem s = daemon->get_hidapi_enabled() ? HIDAPI : USB;
 #if defined(_WIN32)
+	Subsystem s = daemon->get_hidapi_enabled() ? HIDAPI : USB;
 	#define FILTERS &filter_vendor, &filter_product, &filter_idx
-#elif defined(__BSD__)
-	#define FILTERS &filter_vendor, &filter_product, &filter_idx
-	s = UHID;
-#else
-	#define FILTERS &filter_vendor, &filter_product
-#endif
 	if (!daemon->hotplug_cb_add(s, hotplug_cb, FILTERS, NULL)) {
 		LERROR("Failed to register hotplug callback");
 		return false;
 	}
+#elif defined(__BSD__)
+	#define FILTERS &filter_vendor, &filter_product, &filter_idx
+	if (!daemon->hotplug_cb_add(UHID, hotplug_cb, FILTERS, NULL)) {
+		LERROR("Failed to register hotplug callback");
+		return false;
+	}
+#else
+	/* Linux: On Linux with HIDAPI enabled, USB devices still come via udev as USB subsystem.
+	   So we need to register for BOTH HIDAPI (for HIDAPI enumeration) and USB (for udev). */
+	#define FILTERS &filter_vendor, &filter_product
+	if (daemon->get_hidapi_enabled()) {
+		if (!daemon->hotplug_cb_add(HIDAPI, hotplug_cb, FILTERS, NULL)) {
+			LERROR("Failed to register hotplug callback for HIDAPI");
+			return false;
+		}
+		/* Also register for USB subsystem for udev-detected devices */
+		if (!daemon->hotplug_cb_add(USB, hotplug_cb, FILTERS, NULL)) {
+			LERROR("Failed to register hotplug callback for USB");
+			return false;
+		}
+	} else {
+		if (!daemon->hotplug_cb_add(USB, hotplug_cb, FILTERS, NULL)) {
+			LERROR("Failed to register hotplug callback");
+			return false;
+		}
+	}
+#endif
 	return true;
 }
 
