@@ -340,6 +340,7 @@ static bool controller_add(Controller* c) {
 }
 
 static void controller_remove(Controller* c) {
+	DDEBUG("Removing controller %s", c->get_description(c));
 	if (list_remove(controllers, c)) {
 		// Controller is known and was removed from controllers list
 		SCCDMapper* m = get_mapper_for_controller(c);
@@ -359,7 +360,9 @@ static void controller_remove(Controller* c) {
 		pid_t pid = fork();
 		if (pid == 0) {
 			// In child: exec ninja
-			execlp("ninja", "ninja", "-C", "/home/deck/Downloads/tailscale_copy/sc-controller/build", "scc-daemon", (char*)NULL);
+			// execlp("ninja", "ninja", "-C", "/home/deck/Downloads/tailscale_copy/sc-controller/build", "scc-daemon", (char*)NULL);
+			// flatpak run com.github.kozec.scc-daemon debug
+			execlp("flatpak", "flatpak", "run", "com.github.kozec.scc-daemon", "debug", (char*)NULL);
 			// If exec fails
 			_exit(127);
 		} else if (pid > 0) {

@@ -13,7 +13,7 @@ option('android', type: 'feature', value: 'disabled', description: '''
 	Enables building on android, disabling all Linux specific features.
 	Available only on Android/Linux.
 ''')
-option('use-hidapi', type: 'feature', value: 'auto', description: '''
+option('use-hidapi', type: 'feature', value: 'enabled', description: '''
 	Enables and prefers hidapi where available.
 	Default on Windows.
 ''')

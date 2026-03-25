@@ -447,6 +447,7 @@ void sccd_device_monitor_rescan() {
 				break;
 #ifdef USE_HIDAPI
 			case HIDAPI:
+				// it is weird not to use sccd_input_hidapi_rescan here
 				DDEBUG("Rescanning HIDAPI subsystem");
 				sccd_input_hidapi_rescan();
 				break;

@@ -59,6 +59,7 @@ hotplug_cb_fail:
 
 
 static void unload(struct Driver* drv, struct Daemon* d) {
+	DDEBUG("Unloading HIDAPI driver");
 	hid_exit();
 }
 

@@ -65,6 +65,7 @@ void sccd_input_hidapi_init() {
 }
 
 void sccd_input_hidapi_close() {
+	DDEBUG("Closing HIDAPI driver (input_hidapi_close)");
 	hid_exit();
 }
 
@@ -245,7 +246,21 @@ static void sccd_input_hidapi_mainloop(Daemon* d) {
 	int r;
 	FOREACH_IN(HidapiInputDevice*, dev, devices_with_iterupts) {
 		// TODO: Handle device disconnecting
-		while ((r = hid_read_timeout(dev->hid, dev->idata.buffer, dev->idata.length, 0)) > 0) {
+		// T: this loop never exits
+		while ((r = hid_read_timeout(dev->hid, dev->idata.buffer, dev->idata.length, 0))) {
+			if(r < 0) {
+				// Error or device disconnected
+				// DDEBUG("hid_read_timeout returned -1, device may have been disconnected");
+				// wcstombs((char*)dev->idata.buffer, hid_error(dev->hid), dev->idata.length);
+				// break;
+				dev->idata.cb(d,
+					&dev->dev,
+					dev->idx,
+					NULL,  // NULL data indicates disconnection
+					dev->idata.userdata
+				);
+			}
+
 			dev->idata.cb(d,
 					&dev->dev,
 					dev->idx,
@@ -253,6 +268,7 @@ static void sccd_input_hidapi_mainloop(Daemon* d) {
 					dev->idata.userdata
 			);
 		}
+		// DDEBUG("HIDAPI device read loop ended, removing device from interrupt list");
 	}
 }
 

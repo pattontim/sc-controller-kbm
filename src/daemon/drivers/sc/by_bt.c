@@ -123,6 +123,7 @@ int bt_handle_input(SCController *sc, uint8_t* i){
 			}
 			sc->input.buttons &= ~0b00000000000011110000000000000000;
 			//input eval same bitmap?
+			// FIXME: gyro inputs are disabled for now
 			//sc->mapper->input(sc->mapper, &sc->input);
 			return rv;
 		}
@@ -132,7 +133,7 @@ void input_interrupt_cb(Daemon* d, InputDevice* dev, uint8_t endpoint, const uin
 	SCController* sc = (SCController*)userdata;
 	if (data == NULL) {
 		// Means controller disconnected (or failed in any other way)
-		DEBUG("%s disconnected", sc->desc);
+		DDEBUG("%s disconnected", sc->desc);
 		// USBHelper* usb = d->get_usb_helper();
 		// usb->close(sc->usb_hndl);
 		// TODO: Calling close at this point may hang. Closing should be
@@ -176,7 +177,9 @@ void input_interrupt_cb(Daemon* d, InputDevice* dev, uint8_t endpoint, const uin
 }
 
 static void turnoff(Controller* c) {
-	/*DDEBUG("TURNING OFF (BT)");
+	// try to restart the process on controller turnoff
+	DDEBUG("TURNING OFF CONTROLLER %s", c->get_description(c));
+	/*
 	SCController* sc = container_of(c, SCController, controller);
 	uint8_t data[65] = { PT_BT_PREFIX, PT_LIZARD_BUTTONS, 0x01 };
 	uint8_t* response;
