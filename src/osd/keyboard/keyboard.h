@@ -1,3 +1,12 @@
+/**
+ * SC Controller - OSD Keyboard - Internal Header
+ *
+ * Internal definitions for the on-screen keyboard (OSK) system.
+ * Defines the OSDKeyboard type and its private data structure for keyboard
+ * emulation overlay, button layout, color theming, and event handling.
+ *
+ * Public interface is defined in scc/osd/osd_keyboard.h
+ */
 #pragma once
 #include "scc/utils/intmap.h"
 #include "scc/utils/list.h"

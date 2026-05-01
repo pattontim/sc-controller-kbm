@@ -16,10 +16,19 @@ static void on_mnu_ready(void* _kbd) {
 int main(int argc, char** argv) {
 	OSDKeyboardOptions options;
 	traceback_set_argv0(argv[0]);
-	gtk_init(&argc, &argv);
 	
+	// Pre-parse args to catch --silent before gtk_init
 	if (osd_keyboard_parse_args(&options, argc, argv) < 0)
 		return 1;
+	
+	if (options.silent) {
+		setenv("G_MESSAGES_DEBUG", "", 1);
+		freopen("/dev/null", "w", stdout);
+		freopen("/dev/null", "w", stderr);
+	}
+	
+	gtk_init(&argc, &argv);
+	
 	OSDKeyboard* keyboard = osd_keyboard_new(&options);
 	
 	g_signal_connect(G_OBJECT(keyboard), "exit", (GCallback)&on_mnu_exit, NULL);

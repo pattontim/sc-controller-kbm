@@ -1,4 +1,11 @@
 /**
+ * SC Controller - Utilities - JSON Parser (AOJLS)
+ *
+ * Lightweight JSON parser for profile and configuration file parsing.
+ * Imported third-party library maintained to minimize external dependencies.
+ * Used throughout SC Controller for reading JSON-based profiles and settings.
+ */
+/**
  * Copyright (c) 2016, Peter Vanusanik
  * All rights reserved.
  *

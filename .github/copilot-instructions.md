@@ -8,6 +8,7 @@
   - `python/`: Contains Python scripts and tests (see below).
   - `default_profiles/`, `profile_examples/`: Example and default controller profiles.
   - `glade/`: UI definitions (not currently active in WIP branch).
+  - `scc/`: DO NOT WORK ON THIS CODE IT IS THE OLD PYTHON CODEBASE. Contains the Python implementation at the time when the C port was started
 
 ## Build & Run Workflows
 - **Linux:**

@@ -1,3 +1,12 @@
+/**
+ * SC Controller - Utilities - Tokenizer
+ *
+ * Parses input strings into tokens (variable-length parts separated by delimiters).
+ * Used by the profile/action parser to break down action strings into components.
+ * Handles quoted strings, escape sequences, and nested parentheses.
+ *
+ * Delimiters: newline, tab, space, semicolon, comma, parentheses, quotes, backslash
+ */
 #include "scc/utils/logging.h"
 #include "scc/utils/container_of.h"
 #include "scc/utils/tokenizer.h"

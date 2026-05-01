@@ -1,3 +1,14 @@
+/**
+ * SC Controller - Utilities - Mathematical Functions and Data Structures
+ *
+ * Implements mathematical utilities for the controller system:
+ * - Dequeue: Double-ended queue data structure for efficient buffer management
+ * - Vector math: 2D/3D vector operations, scaling, rotation
+ * - Timing: Monotonic time utilities (mono_time_ms()) for scheduler and input processing
+ * - Angle/direction utilities for gyro and stick handling
+ *
+ * Also provides common math constants and functions wrapped from the C math library.
+ */
 #define _POSIX_C_SOURCE 200809L
 #include "scc/utils/traceback.h"
 #include "scc/utils/logging.h"

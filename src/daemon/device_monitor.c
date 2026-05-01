@@ -1,7 +1,13 @@
-/*
- * SC-Controller - Device Monitor - Common code
+/**
+ * SC Controller - Device Monitor - Common Code
  *
- * Mostly common code for registering hotplug callbacks and related filtering.
+ * Implements the common functionality for device hotplug detection across platforms.
+ * Handles registration and dispatch of hotplug callbacks for various subsystems
+ * (USB, Bluetooth, HIDAPI, etc.), and provides filtering to allow subsystem-specific
+ * or vendor/product-specific subscription models.
+ *
+ * Platform-specific implementations (Linux, BSD, Windows) call into these functions
+ * when devices are detected or removed to trigger appropriate callbacks.
  */
 #define LOG_TAG "DevMon"
 #include "scc/utils/logging.h"
@@ -58,18 +64,18 @@ void sccd_device_monitor_new_device(Daemon* d, const InputDeviceData* idata) {
 	}
 	FOREACH_IN(CallbackData*, data, callbacks) {
 		if (data->subsystem != idata->subsystem){
-			DDEBUG("skipping system, mismatch %d != %d... ", data->subsystem, idata->subsystem);
+			// DDEBUG("skipping system, mismatch %d != %d... ", data->subsystem, idata->subsystem);
 			continue;
 		}
 		bool matches_filters = true;
 		FOREACH_IN(HotplugFilter*, filter, data->filters) {
 			if (!sccd_device_monitor_test_filter(d, idata, filter)) {
 				matches_filters = false;
-				DDEBUG("---- NO MATCH");
+				// DDEBUG("---- NO MATCH");
 				break;
 			} else
 			{
-				DDEBUG("---- MATCH FOUND");
+				// DDEBUG("---- MATCH FOUND");
 			}
 		}
 		if (matches_filters) {

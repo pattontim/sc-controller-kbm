@@ -1,3 +1,24 @@
+/**
+ * SC Controller - OSD Keyboard - Initialization and Main Interface
+ *
+ * Initializes and manages the on-screen keyboard GTK widget.
+ * Implements:
+ * - GTK widget class initialization and lifecycle methods
+ * - Connection to daemon for controller input and profile management
+ * - Keyboard state management (button presses, cursor positioning, etc.)
+ * - Profile loading and switching for the keyboard
+ * - Action locking to prevent daemon from handling OSK-intercepted inputs
+ * - Event dispatching from controller to keyboard buttons
+ *
+ * The keyboard is a full GTK window that overlays the desktop and uses
+ * the slave mapper to receive controller input while preventing the main
+ * daemon mapper from processing the same events.
+ *
+ * Supports customization via:
+ * - Command-line arguments (size, controller selection)
+ * - Profiles with keyboard-specific actions
+ * - Config files for layout and theming
+ */
 #define LOG_TAG "OSD"
 #include "scc/utils/strbuilder.h"
 #include "scc/utils/argparse.h"
@@ -36,12 +57,20 @@ static void osd_keyboard_on_connection_ready(SCCClient* c) {
 	DDEBUG("Connection using controller '%s' ready", priv->controller_id);
 	uint32_t handle = sccc_get_controller_handle(c, priv->controller_id);
 	if (handle == 0) {
-		if (priv->controller_id == NULL)
+		if (priv->controller_id == NULL) {
 			LERROR("There is no controller connected");
-		else
-			LERROR("Requested controller '%s' not connected", priv->controller_id);
-		g_signal_emit_by_name(G_OBJECT(kbd), "exit", 4);
-		return;
+			g_signal_emit_by_name(G_OBJECT(kbd), "exit", 4);
+			return;
+		} else {
+			LERROR("Requested controller '%s' not connected, falling back to default", priv->controller_id);
+			priv->controller_id = NULL;
+			handle = sccc_get_controller_handle(c, NULL);
+			if (handle == 0) {
+				LERROR("No controller available");
+				g_signal_emit_by_name(G_OBJECT(kbd), "exit", 4);
+				return;
+			}
+		}
 	}
 	
 	ControllerData * cd = sccc_get_controller_data(priv->client, priv->controller_id);
@@ -269,10 +298,14 @@ int osd_keyboard_parse_args(OSDKeyboardOptions* options, int argc, char** argv) 
 		OPT_GROUP("Basic options"),
 		OPT_STRING('f', NULL, &options->filename, "keyboard definition file to use"),
 		OPT_BOOLEAN('o', "observe", &options->observe, "buttons to only observe"),
+		OPT_STRING(0, "controller", &options->controller, "id of controller to use"),
+		OPT_BOOLEAN(0, "silent", &options->silent, "suppress output", NULL),
 		OPT_END(),
 	};
 	options->filename = NULL;
 	options->observe = NULL;
+	options->controller = NULL;
+	options->silent = false;
 	struct argparse argparse;
 	argparse_init(&argparse, argopts, usage, 0);
 	argparse_describe(&argparse, "\nDisplays on-screen keyboard", NULL);
@@ -316,6 +349,7 @@ OSDKeyboard* osd_keyboard_new(OSDKeyboardOptions* options) {
 	OSDKeyboard* kbd = OSD_KEYBOARD(o);
 	OSDKeyboardPrivate* priv = G_TYPE_INSTANCE_GET_PRIVATE(kbd, OSD_KEYBOARD_TYPE, OSDKeyboardPrivate);
 	
+	priv->controller_id = options->controller;
 	vec_set(priv->size, 10, 10);
 	priv->slave_mapper = sccc_slave_mapper_new(client);
 	if (priv->slave_mapper == NULL)

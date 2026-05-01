@@ -1,3 +1,21 @@
+/**
+ * SC Controller - D-Pad / Hat Switch Action
+ *
+ * Maps stick or pad presses into directional button sequences (up/down/left/right).
+ * Supports both 4-way (cardinal directions) and 8-way (including diagonals) modes.
+ *
+ * Syntax:
+ * - 'dpad(button(A), button(B), button(X), button(Y))' - 4-way D-pad
+ * - 'dpad8(...)' - 8-way with diagonals
+ * - Parameters can be any action type that responds to button presses
+ *
+ * Two variants:
+ * - 4-way (dpad): Up, Down, Left, Right only
+ * - 8-way (dpad8): Adds diagonal combinations (Up+Right, Down+Left, etc.)
+ *
+ * Angle-based: Detects finger position relative to center and maps to nearest direction(s).
+ * Configurable diagonal range to adjust sensitivity of diagonal detection.
+ */
 #include "scc/utils/logging.h"
 #include "scc/utils/strbuilder.h"
 #include "scc/utils/iterable.h"

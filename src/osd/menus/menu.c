@@ -379,8 +379,25 @@ static bool osd_menu_sa_handler(Mapper* m, unsigned int sa_action_type, void* sa
 			OSDMenu* mnu = OSD_MENU(sccc_slave_mapper_get_userdata(m));
 			OSDMenuPrivate* priv = get_private(mnu);
 			sccc_unlock_all(priv->client);
-			char* const argv[] = { scc_osd_keyboard, NULL };
-			scc_spawn(argv, 0);
+			
+			bool silent = g_getenv("SCC_SILENT") != NULL;
+			if (priv->settings.controller_id != NULL) {
+				if (silent) {
+					char* const argv[] = { scc_osd_keyboard, "--controller", (char*)priv->settings.controller_id, "--silent", NULL };
+					scc_spawn(argv, 0);
+				} else {
+					char* const argv[] = { scc_osd_keyboard, "--controller", (char*)priv->settings.controller_id, NULL };
+					scc_spawn(argv, 0);
+				}
+			} else {
+				if (silent) {
+					char* const argv[] = { scc_osd_keyboard, "--silent", NULL };
+					scc_spawn(argv, 0);
+				} else {
+					char* const argv[] = { scc_osd_keyboard, NULL };
+					scc_spawn(argv, 0);
+				}
+			}
 		}
 		return true;
 	}

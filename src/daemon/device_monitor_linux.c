@@ -1,8 +1,16 @@
-/*
- * SC-Controller - Device Monitor - Linux
+/**
+ * SC Controller - Device Monitor - Linux Implementation
  *
- * Watches and enumerates physical devices connected to machine using eudev
- * and allows stuff to happen when new one is detected.
+ * Watches and enumerates physical devices connected to Linux machines using the
+ * udev library. Monitors hotplug events (device insertion/removal) and notifies
+ * registered callbacks when devices matching specific criteria are detected.
+ *
+ * Uses udev for:
+ * - Device enumeration and property lookup
+ * - Hot-plug event monitoring via udev_monitor
+ * - Subsystem-specific filtering (evdev, hidraw, usb, bluetooth, etc.)
+ *
+ * Platform-specific: Linux/libudev only
  */
 #define LOG_TAG "DevMon"
 #include "scc/utils/container_of.h"
@@ -204,6 +212,13 @@ static void on_new_syspath(Daemon* d, const char* subsystem, const char* syspath
 			   Classify as BT subsystem. Create a synthetic path with vendor:product
 			   so the HIDAPI open function can enumerate and open by ID. */
 			DDEBUG("Bluetooth device detected in input subsystem: %s", syspath);
+			
+			// Skip if --no-bt flag is set
+			if (sccd_no_bt) {
+				DDEBUG("Ignoring Bluetooth device (--no-bt flag set): %s", syspath);
+				return;
+			}
+			
 			snprintf(synthetic_path, sizeof(synthetic_path), "bluetooth://%04x:%04x",
 					ldata.vendor, ldata.product);
 			ldata.idev.path = synthetic_path;

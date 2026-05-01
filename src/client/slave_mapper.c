@@ -1,8 +1,24 @@
 /**
- * SC-Controller - Client - Slave Mapper
+ * SC Controller - Client - Slave Mapper
  *
- * Slave mapper... right now... does almost nothing :)
- * If used with SAProfileAction or SATurnoffAction, it forwads request to daemon.
+ * Minimal mapper implementation for client-side action mapping.
+ * Used primarily to forward special action requests (profile switches, daemon control)
+ * back to the scc-daemon via socket communication.
+ *
+ * In contrast to the full daemon mapper (SCCDMapper):
+ * - Does NOT produce real output to virtual devices (keyboard/mouse/gamepad)
+ * - Forwards button events and axis data to subscribed handlers
+ * - Allows client applications to receive raw controller events
+ * - Bridges daemon-side profiles with client-side action handlers
+ *
+ * Primary use case: OSD and UI applications that need to:
+ * - Display controller state visually
+ * - Respond to specific button presses while daemon handles main mapping
+ * - Request daemon profile changes via SAProfileAction
+ * - Implement custom input handling client-side
+ *
+ * Note: Most of the core functionality is delegated to the daemon.
+ * This mapper primarily exists to interface with client-specific handlers.
  */
 
 // TODO: Almost everything here

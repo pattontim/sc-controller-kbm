@@ -1,3 +1,18 @@
+/**
+ * SC Controller - OSD Keyboard - Keyboard-Specific Actions
+ *
+ * Implements special-purpose actions for on-screen keyboard behavior:
+ * - OSK.cursor: Moves cursor within keyboard based on analog stick/touchpad input
+ * - OSK.press: Presses a button on the keyboard (emulates key press)
+ * - OSK.close: Closes the keyboard overlay
+ *
+ * These actions are not part of the normal action system but are registered
+ * separately for use within the OSK profile. They communicate with the keyboard
+ * via the special_action callback mechanism.
+ *
+ * Used by the keyboard profile to map controller inputs to keyboard navigation
+ * and key selection, allowing users to type without physical keyboard.
+ */
 #include "scc/utils/logging.h"
 #include "scc/utils/container_of.h"
 #include "scc/utils/strbuilder.h"

@@ -1,3 +1,13 @@
+/**
+ * SC Controller - Utilities - Traceback and Stack Trace Reporting
+ *
+ * Provides stack trace capture and pretty-printing for debugging and error reporting.
+ * Integrates signal handlers for automatic backtrace output on crashes (SIGSEGV, SIGABRT, etc.).
+ * Disabled at compile-time with NO_TRACEBACKS flag for production builds.
+ *
+ * Uses glibc backtrace() and addr2line for symbolic resolution of stack frames.
+ * Platform-specific: Unix/Linux only
+ */
 #ifndef NO_TRACEBACKS
 #define _GNU_SOURCE
 #include "scc/utils/traceback.h"

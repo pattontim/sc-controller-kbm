@@ -1,5 +1,28 @@
 /**
- * SC Controller - Daemon
+ * SC Controller - Daemon Core Implementation
+ *
+ * Main implementation of the SC Controller daemon, responsible for:
+ * - Initializing and running the main event loop (sccd_start)
+ * - Managing connected controllers and their mappers
+ * - Loading and reloading profiles onto mappers
+ * - Coordinating all daemon subsystems (socket, scheduler, poller, device monitor)
+ * - Managing client-daemon communication and special clients (OSD, autoswitch)
+ * - Tracking errors and making them available to clients via logging
+ * - Implementing the Daemon interface used by drivers and subsystems
+ *
+ * Key State:
+ * - mappers: List of available mappers (one per active controller)
+ * - default_mapper: The primary mapper (usually for the first controller)
+ * - default_profile: The profile to load on startup
+ * - controllers: List of all connected controllers
+ * - osd_daemon, autoswitch_daemon: Special privileged clients
+ *
+ * The daemon runs in a single-threaded event loop that:
+ * 1. Polls file descriptors for input events from controllers and sockets
+ * 2. Executes scheduled tasks at appropriate intervals
+ * 3. Processes client commands and device hotplug events
+ * 4. Applies input mapping via Action handlers
+ * 5. Outputs to virtual devices (keyboard, mouse, gamepad)
  */
 #define LOG_TAG "Daemon"
 #include "scc/utils/traceback.h"
@@ -14,6 +37,7 @@
 #include "daemon.h"
 #include <signal.h>
 #include <unistd.h>
+#include <stdlib.h>
 #ifndef _WIN32
 #include <sys/wait.h>
 #endif
@@ -585,8 +609,13 @@ static void spawn_minions(void* trash1, void* trash2) {
 		if (osdd == NULL) {
 			WARN("Cannot start scc-osd-daemon: binary not found");
 		} else {
-			char* argv[] = { osdd, NULL };
-			minions.osdd = scc_spawn(argv, 0);
+			if (sccd_silent) {
+				char* argv[] = { osdd, "--silent", NULL };
+				minions.osdd = scc_spawn(argv, 0);
+			} else {
+				char* argv[] = { osdd, NULL };
+				minions.osdd = scc_spawn(argv, 0);
+			}
 			free(osdd);
 			if (minions.osdd < 0)
 				WARN("Cannot start scc-osd-daemon: error %i", minions.osdd);
@@ -604,6 +633,12 @@ void sccd_set_default_profile(const char* profile) {
 
 int sccd_start() {
 	INFO("Starting SC Controller Daemon v%s...", DAEMON_VERSION);
+	
+	// Set environment variable for child processes
+	if (sccd_silent) {
+		setenv("SCC_SILENT", "1", 1);
+	}
+	
 	set_proctitle(NULL);
 	mainloop_callbacks = list_new(sccd_mainloop_cb, 0);
 	mappers = list_new(SCCDMapper, 16);
@@ -628,7 +663,8 @@ int sccd_start() {
 	sccd_input_libusb_init(&_daemon);
 #endif
 #ifdef USE_HIDAPI
-	sccd_input_hidapi_init(&_daemon);
+	// TODO: impl of not passing daemon here
+	if (!sccd_no_bt) sccd_input_hidapi_init();
 #endif
 #ifdef USE_DINPUT
 	sccd_input_dinput_init();

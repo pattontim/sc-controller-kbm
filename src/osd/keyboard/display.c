@@ -1,3 +1,19 @@
+/**
+ * SC Controller - OSD Keyboard - Display/Rendering
+ *
+ * Handles rendering of the on-screen keyboard interface using Cairo graphics.
+ * Implements:
+ * - Button layout and positioning calculation
+ * - Text rendering (key labels, shift cases, special characters)
+ * - Visual feedback (pressed states, highlighting, borders)
+ * - Dynamic color theming from configuration
+ * - Keyboard state tracking (shift, caps-lock, special modes)
+ * - Help area display with button assistance
+ *
+ * Uses GTK's Cairo drawing context for platform-independent rendering.
+ * Button images and icons are cached for performance.
+ * Integrates with X11 keyboard state on Linux for proper shift/caps detection.
+ */
 #define LOG_TAG "OSD"
 #include "scc/utils/logging.h"
 #include "scc/utils/strbuilder.h"
@@ -272,8 +288,25 @@ bool on_redraw(GtkWidget* draw_area, cairo_t* ctx, void* _priv) {
 	for (int i=0; i<=1; i++) {
 		cairo_save(ctx);
 		cairo_translate(ctx, priv->cursors[i].position.x, priv->cursors[i].position.y);
+		
+		// Paint pixbuf first (monochrome/white base)
 		gdk_cairo_set_source_pixbuf(ctx, priv->cursors[i].image, 0, 0);
 		cairo_paint(ctx);
+		
+		// FIXME: recomputing this is too slow
+		// Apply color overlay based on cursor index
+		// 0: Red, 1: Blue, 2: Green, 3: Yellow (mod 4 for multiple controllers)
+		// GdkRGBA tint;
+		// switch (i % 4) {
+		// 	case 0: gdk_rgba_parse(&tint, "rgba(255,80,80,0.4)"); break;   // Red overlay
+		// 	case 1: gdk_rgba_parse(&tint, "rgba(80,80,255,0.4)"); break;   // Blue overlay
+		// 	case 2: gdk_rgba_parse(&tint, "rgba(80,255,80,0.4)"); break;   // Green overlay
+		// 	case 3: gdk_rgba_parse(&tint, "rgba(255,220,80,0.4)"); break;  // Yellow overlay
+		// }
+		// gdk_cairo_set_source_rgba(ctx, &tint);
+		// cairo_set_operator(ctx, CAIRO_OPERATOR_OVERLAY);
+		// cairo_paint(ctx);
+		
 		cairo_restore(ctx);
 	}
 	

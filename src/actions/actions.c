@@ -1,3 +1,21 @@
+/**
+ * SC Controller - Action System - Registration and Core
+ *
+ * Implements the action registry and core action infrastructure:
+ * - Dynamic action registration and lookup by keyword
+ * - Action lifecycle management (allocation, deallocation, reference counting)
+ * - Action parameter parsing and validation
+ * - Conversion between actions and their string representations
+ *
+ * All action types (button, axis, ball, feedback, dpad, etc.) register themselves
+ * with the action system at startup via scc_action_register(). This enables
+ * profiles to reference actions by name and have them instantiated on demand.
+ *
+ * Actions follow an OOP pattern in C:
+ * - Each action type defines private struct embedding the Action vtable
+ * - Uses container_of macro to cast from abstract Action* to concrete type
+ * - Reference counting (RC_ADD/RC_REL) manages lifecycle across subsystems
+ */
 #include "scc/utils/strbuilder.h"
 #include "scc/utils/hashmap.h"
 #include "scc/utils/logging.h"

@@ -1,3 +1,12 @@
+/**
+ * SC Controller - Utilities - MSYS/Windows Socket Emulation
+ *
+ * Windows-specific utility for emulating Unix domain sockets on Windows systems
+ * where they are not natively supported. Uses named pipes internally to provide
+ * compatible socket-like communication.
+ *
+ * Platform-specific: Windows only (gated by #ifdef _WIN32)
+ */
 #ifdef _WIN32
 #define LOG_TAG "msys_socket"
 #include "scc/utils/logging.h"

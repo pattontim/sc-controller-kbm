@@ -1,10 +1,21 @@
-/*
- * SC-Controller - ButtonAction
+/**
+ * SC Controller - Button Action
  *
- * Action that presses virtual button, be it on keyboard, mouse or gamepad
+ * Maps controller input to virtual button presses on keyboard, mouse, or gamepad.
+ * Supports:
+ * - Single button: 'button(KEY_A)' presses a specific key
+ * - Conditional buttons: 'button(KEY_A, KEY_B)' presses different keys based on input type
+ * - Button repeat on hold (Windows only, emulated via scheduler callbacks)
+ * - Key press counter for handling multiple rapid presses vs. holds
  *
+ * Implements virtual key tracking with reference counting to handle:
+ * - Overlapping presses (rapid successive presses)
+ * - Key repeats triggered by scheduler
+ * - Proper release sequencing when keys are held
+ *
+ * Integrates with mapper's virtual device system to route buttons to appropriate device.
  * Supported properties:
- *  - keycode	(int)
+ * - keycode (int)
  */
 #include "scc/utils/logging.h"
 #include "scc/utils/strbuilder.h"

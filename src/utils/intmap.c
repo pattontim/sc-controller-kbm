@@ -1,5 +1,10 @@
-/*
- * IntMap implementation.
+/**
+ * SC Controller - Utilities - Integer Key Map
+ *
+ * Generic hash map using integer keys rather than strings.
+ * Provides efficient O(1) average-case lookups for integer-keyed data.
+ * Used internally by the poller for callback management.
+ * Implements same iterator interface as other collection types for consistency.
  */
 #include "scc/utils/assert.h"
 #include "scc/utils/intmap.h"

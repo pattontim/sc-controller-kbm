@@ -1,3 +1,21 @@
+/**
+ * SC Controller - OSD Common - Menu Icon Widget
+ *
+ * Implements MenuIcon, a GTK drawing widget for rendering action/menu icons.
+ * Features:
+ * - Pixbuf-based icon rendering with scaling
+ * - Color tinting support for visual feedback (highlight, press states)
+ * - Automatic aspect ratio preservation (square dimensions)
+ * - Caching of loaded pixbufs for performance
+ *
+ * Used by OSD menu and keyboard widgets to display:
+ * - Controller button icons
+ * - Action icons
+ * - Mode indicator icons
+ * - Colored feedback overlays
+ *
+ * Integrates with GDK/Cairo for rendering and Pixbuf for image handling.
+ */
 #define LOG_TAG "OSD"
 #include "scc/utils/logging.h"
 #include "scc/utils/assert.h"

@@ -1,3 +1,21 @@
+/**
+ * SC Controller - OSD Keyboard - Configuration and Data Loading
+ *
+ * Loads keyboard layout data, color themes, and button positions from configuration.
+ * Implements:
+ * - JSON parsing of keyboard layout definitions (button positions, sizes, labels)
+ * - Color scheme loading from user configuration files
+ * - Fallback to default colors and layouts if configuration is missing
+ * - Button property parsing (is it a key? action? delimiter?)
+ * - File I/O for reading keyboard layout and theme data
+ *
+ * Integrates with the config system to allow customization of:
+ * - Keyboard visual appearance (colors, fonts)
+ * - Button layout and positioning
+ * - Default button groups and organization
+ *
+ * Uses AOJLS (lightweight JSON parser) for configuration file parsing.
+ */
 #define LOG_TAG "OSD"
 #include "scc/utils/logging.h"
 #include "scc/utils/strbuilder.h"

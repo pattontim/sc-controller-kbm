@@ -1,3 +1,17 @@
+/**
+ * SC Controller - Utilities - String Builder
+ *
+ * Dynamic string building utility that simplifies formatted string construction
+ * and concatenation without manual buffer management. Automatically grows buffer
+ * as content is appended. Supports printf-style formatting via strbuilder_fmt().
+ *
+ * Common uses:
+ * - Building command-line arguments for subprocess spawning
+ * - Formatting log messages
+ * - Constructing JSON or configuration strings
+ *
+ * Caller is responsible for freeing allocated memory.
+ */
 #include "scc/utils/strbuilder.h"
 #include "scc/utils/math.h"
 #include <stdarg.h>

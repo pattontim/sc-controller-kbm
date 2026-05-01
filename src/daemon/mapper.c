@@ -457,8 +457,22 @@ static bool special_action(Mapper* m, unsigned int sa_action_type, void* sa_data
 		if (scc_osd_keyboard == NULL) {
 			LERROR("Could not find 'scc-osd-keyboard'");
 		} else {
-			char* argv[] = { scc_osd_keyboard, NULL };
-			scc_spawn(argv, 0);
+			Controller* c = m->get_controller(m);
+			if (c != NULL && sccd_silent) {
+				const char* cid = c->get_id(c);
+				char* argv[] = { scc_osd_keyboard, "--controller", (char*)cid, "--silent", NULL };
+				scc_spawn(argv, 0);
+			} else if (c != NULL) {
+				const char* cid = c->get_id(c);
+				char* argv[] = { scc_osd_keyboard, "--controller", (char*)cid, NULL };
+				scc_spawn(argv, 0);
+			} else if (sccd_silent) {
+				char* argv[] = { scc_osd_keyboard, "--silent", NULL };
+				scc_spawn(argv, 0);
+			} else {
+				char* argv[] = { scc_osd_keyboard, NULL };
+				scc_spawn(argv, 0);
+			}
 		}
 		return true;
 	}

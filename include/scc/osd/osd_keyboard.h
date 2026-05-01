@@ -2,6 +2,7 @@
 #include "scc/utils/dll_export.h"
 #include "scc/utils/rc.h"
 #include <gtk/gtk.h>
+#include <stdbool.h>
 
 G_BEGIN_DECLS
 
@@ -18,6 +19,8 @@ typedef struct _OSDKeyboardClass		OSDKeyboardClass;
 typedef struct OSDKeyboardOptions {
 	const char*			filename;
 	const char*			observe;
+	const char*			controller;
+	bool				silent;
 } OSDKeyboardOptions;
 
 typedef struct OSDKeyboardCallbacks {

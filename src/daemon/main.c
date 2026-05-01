@@ -54,6 +54,9 @@ typedef enum {
 
 static char* argv0;
 
+bool sccd_no_bt = false;
+bool sccd_silent = false;
+
 #ifndef _WIN32
 
 static size_t max_argv0_size = 0;
@@ -211,6 +214,8 @@ int main(int argc, char** argv) {
 										"osd-daemon and autoswitch-daemon", NULL),
 		OPT_BOOLEAN(0, "once", &once,	"use with 'stop' to send single SIGTERM "
 										"without waiting for daemon to exit", NULL),
+		OPT_BOOLEAN(0, "no-bt", &sccd_no_bt, "ignore Bluetooth devices", NULL),
+		OPT_BOOLEAN(0, "silent", &sccd_silent, "suppress output", NULL),
 		OPT_END(),
 	};
 	struct argparse argparse;
@@ -255,7 +260,7 @@ int main(int argc, char** argv) {
 		stop_daemon(once);
 		return start_daemon();
 	case M_DEBUG:
-		sccd_logger_init(true);
+		sccd_logger_init(!sccd_silent);
 		return sccd_start();
 	default:
 		argparse_usage(&argparse);

@@ -1,3 +1,17 @@
+/**
+ * SC Controller - Axis Action
+ *
+ * Maps stick/pad inputs to gamepad axes (analogs) with customizable scaling and range limits.
+ * Supports:
+ * - Basic axis action: 'axis(0)' maps to left stick X-axis
+ * - With scaling: 'axis(0, 0.5)' applies 50% scaling
+ * - Capped ranges: 'axis(0, 0.5, -1000, 1000)' constrains output
+ * - Rotation axes: 'raxis(*)' applies controller-orientation-relative rotation
+ * - Hat (D-pad) as axis: 'hatup', 'hatdown', 'hatleft', 'hatright'
+ *
+ * Also used internally for D-pad emulation when mapping pads as directional input.
+ * Reference: include/scc/action.h for Axis enum values and AxisValue type
+ */
 #include "scc/utils/strbuilder.h"
 #include "scc/utils/logging.h"
 #include "scc/utils/assert.h"

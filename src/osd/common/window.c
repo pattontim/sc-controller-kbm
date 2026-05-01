@@ -1,3 +1,21 @@
+/**
+ * SC Controller - OSD Common - OSD Window Base Class
+ *
+ * Implements OSDWindow, a GTK base class for on-screen display windows.
+ * Provides:
+ * - Platform-specific window setup (X11 on Linux, Win32 on Windows)
+ * - Click-through capability (mouse events pass through to background)
+ * - Custom input event routing to application handlers
+ * - Window geometry management and positioning
+ * - Proper window stacking and z-order control
+ *
+ * Platform-specific features:
+ * - Linux/X11: Uses XShape and Xfixes extensions for input masking
+ * - Windows: Uses Win32 API for transparent click-through windows
+ *
+ * Extended by OSDKeyboard and OSDMenu for specialized behavior.
+ * Keeps windows responsive and prevents interference with user input to underlying apps.
+ */
 #define LOG_TAG "OSD"
 #include "scc/utils/logging.h"
 #include "scc/utils/assert.h"

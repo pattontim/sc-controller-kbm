@@ -1,3 +1,16 @@
+/**
+ * SC Controller - Utilities - Logging System
+ *
+ * Provides colored console logging with multiple log levels (DEBUG, INFO, WARN, ERROR).
+ * Supports platform-specific formatting (ANSI colors on Unix, Windows console API on Windows).
+ * Integrates with the daemon's centralized logging system for client subscriptions.
+ *
+ * Log levels:
+ * - DDEBUG: Debug information (only if DEBUG is enabled)
+ * - INFO: General informational messages
+ * - WARN: Warnings about unusual but non-fatal conditions
+ * - LERROR: Error messages indicating failures
+ */
 #include "scc/utils/logging.h"
 #include <stdarg.h>
 #include <stdio.h>

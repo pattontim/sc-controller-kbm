@@ -1,3 +1,11 @@
+/**
+ * SC Controller - Utilities - String Key Hash Map
+ *
+ * Generic hash map using string keys for efficient O(1) average-case lookups.
+ * Supports optional key duplication (copy_keys) and callback-based cleanup (dealloc callback).
+ * Used throughout SC Controller for device tracking, driver management, and name-based lookups.
+ * Implements same iterator interface as other collection types for consistency.
+ */
 /*
  * Generic map implementation.
  */

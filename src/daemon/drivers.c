@@ -1,3 +1,20 @@
+/**
+ * SC Controller - Daemon - Driver Management
+ *
+ * Dynamically loads and manages platform-specific input drivers (HIDAPI, LibUSB,
+ * DirectInput, BSD HID, etc.). Drivers are loaded as shared libraries at runtime,
+ * allowing flexible input device support across platforms without linking dependencies.
+ *
+ * The driver system implements:
+ * - Dynamic library loading (dlopen/LoadLibrary)
+ * - Driver discovery and initialization
+ * - Device enumeration and hot-plug callback registration
+ * - Per-driver state management via a hashmap
+ *
+ * Drivers are loaded from the 'drivers/' directory when the daemon starts.
+ * Each driver exports a single 'scc_driver_init' function that registers
+ * itself with the daemon via a Driver interface struct.
+ */
 #define LOG_TAG "Daemon"
 #include "scc/utils/logging.h"
 #include "scc/utils/hashmap.h"

@@ -1,4 +1,11 @@
 /**
+ * SC Controller - Utilities - Argument Parser
+ *
+ * Command-line argument parsing utility used by daemons and utilities to parse
+ * environment variables and command-line flags. Supports options and positional arguments.
+ * Imported third-party library maintained to minimize external dependencies.
+ */
+/**
  * Copyright (C) 2012-2015 Yecheng Fu <cofyc.jackson at gmail dot com>
  * All rights reserved.
  *

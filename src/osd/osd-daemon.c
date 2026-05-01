@@ -1,3 +1,25 @@
+/**
+ * SC Controller - OSD Daemon
+ *
+ * Separate daemon process that manages on-screen display (OSD) overlays:
+ * - OSK (On-Screen Keyboard): Virtual keyboard for input without physical device
+ * - OSD Menu: Radial/grid menus for quick profile/action selection
+ *
+ * Communicates with scc-daemon via socket to:
+ * - Register as special OSD client to intercept controller input
+ * - Lock inputs when OSD is visible to prevent double-mapping
+ * - Unlock inputs when OSD is closed
+ * - Request profile changes and action execution
+ *
+ * Uses GTK and Glib for GUI rendering and event management.
+ * Runs as a separate process to keep main daemon lightweight and responsive.
+ *
+ * Exit codes:
+ * - 0: Normal exit
+ * - 1: Connection failed or fatal error
+ * - 2: GTK initialization failed
+ * - Other: Specific error codes set by OSD components
+ */
 #define LOG_TAG "OSDD"
 #include "scc/utils/logging.h"
 #include "scc/utils/traceback.h"
@@ -91,16 +113,34 @@ inline static bool register_with_sccd() {
 
 int main(int argc, char** argv) {
 	traceback_set_argv0(argv[0]);
+	
+	bool silent = false;
+	struct argparse_option options[] = {
+		OPT_HELP(),
+		OPT_BOOLEAN(0, "silent", &silent, "suppress output", NULL),
+		OPT_END(),
+	};
+	struct argparse argparse;
+	argparse_init(&argparse, options, NULL, 0);
+	argc = argparse_parse(&argparse, argc, (const char**)argv);
+	
+	if (silent) {
+		// Suppress GTK messages by redirecting to null
+		setenv("G_MESSAGES_DEBUG", "", 1);
+		freopen("/dev/null", "w", stdout);
+		freopen("/dev/null", "w", stderr);
+	}
+	
 	gtk_init(&argc, &argv);
 	
 	client = sccc_connect();
 	if (client == NULL) {
-		LERROR("Failed to connect to scc-daemon");
+		if (!silent) LERROR("Failed to connect to scc-daemon");
 		return 2;
 	}
 	
 	if (!register_with_sccd()) {
-		LERROR("Failed to register with scc-daemon");
+		if (!silent) LERROR("Failed to register with scc-daemon");
 		return 2;
 	}
 	

@@ -1,7 +1,23 @@
 /**
- * SC-Controller - Client - Socket
- * 
- * Code here handles clients connecting to scc-daemon using unix socket.
+ * SC Controller - Client - Socket Communication
+ *
+ * Implements client-side socket connection and protocol handling for communicating
+ * with the scc-daemon process. Manages:
+ * - Socket connection/disconnection to daemon
+ * - Message parsing (profile lists, controller lists, events)
+ * - Controller discovery and state tracking
+ * - Event subscriptions (buttons, axes, pads, etc.)
+ * - Mapper control (profile switching, hotplug notifications)
+ *
+ * Uses Unix domain sockets on Linux/Unix, Windows named pipes on Windows.
+ * Each client process maintains a single connection to the daemon,  identified by
+ * a unique tag that clients can set for logging/debugging purposes.
+ *
+ * Protocol: Text-based newline-delimited commands and responses.
+ * Examples:
+ * - "list-profiles" -> daemon sends available profiles
+ * - "acquire KEY_A" -> client locks button input
+ * - "clear mapping" -> resets profile settings
  */
 
 #define LOG_TAG "SCCC"
