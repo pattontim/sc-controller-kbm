@@ -135,6 +135,14 @@ DLL_EXPORT bool _sccc_lock(SCCClient* c, int handle, const char* src1, ...);
 DLL_EXPORT bool _sccc_observe(SCCClient* c, int handle, const char* src1, ...);
 
 /**
+ * Like sccc_lock/sccc_observe, but takes a StringList of source names
+ * instead of varargs. Useful when sources are determined at runtime.
+ * Returns true on success.
+ */
+DLL_EXPORT bool sccc_lock_list(SCCClient* c, int handle, StringList sources);
+DLL_EXPORT bool sccc_observe_list(SCCClient* c, int handle, StringList sources);
+
+/**
  * Unlocks all button, axes or pads locked by calls to sccc_lock.
  *
  * Returns true on success (which should be always) or false

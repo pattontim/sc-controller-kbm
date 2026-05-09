@@ -83,58 +83,89 @@ static void osd_keyboard_on_connection_ready(SCCClient* c) {
 
 	DDEBUG("Controller '%s' ready using handle %i", priv->controller_id, handle);
 
-	bool locked;
-	if(strcmp(cd->type, "deck") == 0){
-		DDEBUG("Locking deck");
-		locked = sccc_lock(c, handle,
-					"STICK", "A", "B", "X", "Y", "C", 
-					"RGRIP", "RGRIP2", "LGRIP", "LGRIP2", "DOTS", "START", "BACK", "LB", "RB"
-					, "LTRIGGER", "RTRIGGER"
-					, "LPAD", "RPAD" 
-					, "LPADPRESS", "RPADPRESS"
-					);
-	
-	// WIP: observe protocol
-	// if (priv->options->observe != NULL) {
-	// 	Tokens* tokens = tokenize(priv->options->observe);
-	// 	tokens_auto_skip_whitespace(tokens);
+	// All sources the keyboard needs to acquire
+	const char* all_sources[] = {
+		"STICK", "A", "B", "X", "Y", "C",
+		"RGRIP", "RGRIP2", "LGRIP", "LGRIP2", "DOTS", "START", "BACK",
+		"LB", "RB", "LTRIGGER", "RTRIGGER",
+		"LPAD", "RPAD", "LPADPRESS", "RPADPRESS",
+		// TODO: why is there a NULL here?
+		NULL
+	};
 
-	// 	StringList sources = list_new(char, 0);
-	// 	list_set_dealloc_cb(sources, &free);
-	// 	// TODO 
-	// 	// if (sources == NULL)
-	// 	// 	return sccd_on_client_command_oom(client);
-	// 	while (iter_has_next(tokens)) {
-	// 		char* source = strbuilder_cpy(iter_next(tokens));
-	// 		bool added = (source != NULL) ? list_add(sources, source) : false;
-	// 		if (!added) {
-	// 			free(source);
-	// 			list_free(sources);
-	// 			// TODO
-	// 			// return sccd_on_client_command_oom(client);
-	// 		}
-	// 	}
-
-	// 	// char ** sources_array = list_consume(sources);
-	// 	locked = sccc_observe(c, handle, sources);
-	// 	// free(sources_array);
-	} else {
-		// why is LGRIP/RGRIP on non deck?
-		locked = sccc_lock(c, handle,
-					"STICK", "A", "B", "X", "Y", "C", 
-					"RGRIP", "RGRIP2", "LGRIP", "LGRIP2", "DOTS", "START", "BACK" 
-					, "LB", "RB"
-					, "LTRIGGER", "RTRIGGER"
-					, "LPAD", "RPAD" 
-					, "LPADPRESS", "RPADPRESS"
-					);
+	// Parse observe option into a StringList
+	StringList observe_set = list_new(char, 0);
+	list_set_dealloc_cb(observe_set, &free);
+	if (observe_set == NULL) {
+		LERROR("OOM building observe list");
+		g_signal_emit_by_name(G_OBJECT(kbd), "exit", 3);
+		return;
 	}
+
+	if (priv->options->observe != NULL && strlen(priv->options->observe) > 0) {
+		Tokens* tokens = tokenize(priv->options->observe);
+		if (tokens != NULL) {
+			tokens_auto_skip_whitespace(tokens);
+			while (iter_has_next(tokens)) {
+				char* source = strbuilder_cpy(iter_next(tokens));
+				if (source != NULL) {
+					if (!list_add(observe_set, source)) {
+						free(source);
+					}
+				}
+			}
+			tokens_free(tokens);
+		}
+	}
+
+	// Partition all_sources into lock_set and observe_set_final
+	StringList lock_set = list_new(char, 0);
+	list_set_dealloc_cb(lock_set, &free);
+	if (lock_set == NULL) {
+		list_free(observe_set);
+		LERROR("OOM building lock list");
+		g_signal_emit_by_name(G_OBJECT(kbd), "exit", 3);
+		return;
+	}
+
+	for (int i = 0; all_sources[i] != NULL; i++) {
+		bool is_observed = false;
+		FOREACH_IN(char*, obs, observe_set) {
+			if (strcmp(all_sources[i], obs) == 0) {
+				is_observed = true;
+				break;
+			}
+		}
+		if (!is_observed) {
+			char* copy = strbuilder_cpy(all_sources[i]);
+			if (copy != NULL) list_add(lock_set, copy);
+		}
+	}
+
+	// Step 1: Lock non-observed sources
+	bool locked = true;
+	if (list_len(lock_set) > 0) {
+		locked = sccc_lock_list(c, handle, lock_set);
+	}
+	list_free(lock_set);
 
 	if (!locked) {
-			LERROR("Failed to lock controller");
-			g_signal_emit_by_name(G_OBJECT(kbd), "exit", 3);
-			return;
+		list_free(observe_set);
+		LERROR("Failed to lock controller");
+		g_signal_emit_by_name(G_OBJECT(kbd), "exit", 3);
+		return;
 	}
+
+	// Step 2: Observe the selected sources
+	if (list_len(observe_set) > 0) {
+		bool observed = sccc_observe_list(c, handle, observe_set);
+		if (!observed) {
+			WARN("Failed to observe requested sources, they will not pass through to profile actions");
+		}
+	}
+
+	// Store observed sources for later filtering in event handler
+	priv->observed_sources = observe_set;
 	
 	g_signal_emit_by_name(G_OBJECT(kbd), "ready");
 }
@@ -142,9 +173,19 @@ static void osd_keyboard_on_connection_ready(SCCClient* c) {
 static void osd_keyboard_on_event(SCCClient* c, uint32_t handle, SCButton button, PadStickTrigger pst, int values[]) {
 	OSDKeyboard* kbd = OSD_KEYBOARD(c->userdata);
 	OSDKeyboardPrivate* priv = G_TYPE_INSTANCE_GET_PRIVATE(kbd, OSD_KEYBOARD_TYPE, OSDKeyboardPrivate);
+
+	// For observed trigger sources, don't feed to slave mapper.
+	// The original action (e.g. mouse click) already executes on the daemon mapper.
+	// Feeding to slave mapper would also trigger keyboard profile's trigger action (shift/ctrl).
+	if ((pst == PST_LTRIGGER || pst == PST_RTRIGGER) && priv->observed_sources != NULL) {
+		const char* pst_name = scc_what_to_string(pst);
+		FOREACH_IN(char*, obs, priv->observed_sources) {
+			if (strcmp(pst_name, obs) == 0)
+				return;  // Skip — original action handles this
+		}
+	}
+
 	sccc_slave_mapper_feed(priv->slave_mapper, button, pst, values);
-	// else
-	// LOG("# %i %i %i > %i %i", handle, button, pst, values[0], values[1]);
 }
 
 static gboolean osd_keyboard_on_data_ready(GIOChannel* source, GIOCondition condition, gpointer _kbd) {
@@ -266,6 +307,12 @@ static bool osd_keyboard_sa_handler(Mapper* m, unsigned int sa_action_type, void
 			g_source_unref(priv->client_src);
 		sccc_unref(priv->client);
 
+		// Clean up observed sources list
+		if (priv->observed_sources != NULL) {
+			list_free(priv->observed_sources);
+			priv->observed_sources = NULL;
+		}
+
 		// TODO further cleanup when kbd persist
 		osd_window_exit(OSD_WINDOW(kbd), 0);
 	}
@@ -288,7 +335,7 @@ static void osd_keyboard_init(OSDKeyboard* kbd) {
 }
 
 static const char *const usage[] = {
-	"scc-osd-keyboard -f <filename> [-o] <observe_buttons>",
+	"scc-osd-keyboard -f <filename> [-o \"LTRIGGER RTRIGGER RPAD\"]",
 	NULL,
 };
 
@@ -297,13 +344,13 @@ int osd_keyboard_parse_args(OSDKeyboardOptions* options, int argc, char** argv) 
 		OPT_HELP(),
 		OPT_GROUP("Basic options"),
 		OPT_STRING('f', NULL, &options->filename, "keyboard definition file to use"),
-		OPT_BOOLEAN('o', "observe", &options->observe, "buttons to only observe"),
+		OPT_STRING('o', "observe", &options->observe, "space-separated sources to observe instead of lock (default: LTRIGGER RTRIGGER RPAD)"),
 		OPT_STRING(0, "controller", &options->controller, "id of controller to use"),
 		OPT_BOOLEAN(0, "silent", &options->silent, "suppress output", NULL),
 		OPT_END(),
 	};
 	options->filename = NULL;
-	options->observe = NULL;
+	options->observe = "LTRIGGER RTRIGGER RPAD";
 	options->controller = NULL;
 	options->silent = false;
 	struct argparse argparse;

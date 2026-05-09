@@ -158,6 +158,10 @@ void sccd_on_client_command(Client* client, char* buffer, size_t len) {
 			// Generates list of sources and attempts to add an observing client
 			StringList sources = list_new(char, 0);
 			list_set_dealloc_cb(sources, &free);
+			LOG("Adding observe client for sources:");
+			FOREACH_IN(char*, src, sources) {
+				LOG("  %s", src);
+			}
 			if (sources == NULL)
 				return sccd_on_client_command_oom(client);
 			while (iter_has_next(tokens)) {

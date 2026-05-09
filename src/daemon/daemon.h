@@ -243,6 +243,8 @@ bool sccd_device_monitor_test_filter(Daemon* d, const InputDeviceData* data, con
  * A subsystem is enabled if at least one hotplug callback is registered for it.
  */
 uint32_t sccd_device_monitor_get_enabled_subsystems(Daemon* d);
+
+#ifdef _WIN32
 struct Win32InputDeviceData {
 	InputDeviceData		idev;
 	Vendor				vendor;
@@ -254,9 +256,11 @@ struct Win32InputDeviceData {
 };
 /** Internal: Fills a Win32-specific input device data structure */
 void sccd_device_monitor_win32_fill_struct(struct Win32InputDeviceData* wdev);
+#endif
+
 /** Forces a rescan of LibUSB devices (Windows) */
 void sccd_input_libusb_rescan();
-#endif
+
 
 /** Returns a special client (OSD daemon or autoswitch daemon), or NULL if not registered */
 Client* sccd_get_special_client(enum SpecialClientType t);

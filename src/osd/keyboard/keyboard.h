@@ -74,6 +74,7 @@ typedef struct _OSDKeyboardPrivate {
 	GdkRGBA						color_text;
 	guint						mod_state;
 	OSDKeyboardOptions*			options;
+	StringList					observed_sources;
 } OSDKeyboardPrivate;
 
 

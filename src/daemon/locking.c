@@ -61,6 +61,7 @@ typedef enum {
 	SRC_RPAD,
 	SRC_CPAD,
 	SRC_DPAD,
+	// SRC_GYRO,
 	
 	SRC_MAX,
 	SRC_INVALID,
@@ -78,10 +79,13 @@ typedef enum {
 // 	ReportingAction	base;
 // } LockedAction2;
 
-// typedef struct {
-//     ReportingAction base;
-// 	Action*			original_action;	
-// } ObservingAction;
+typedef struct {
+    Action			action;
+	Action*			original_action;	
+	Client*			client;
+	Source			source;
+	AxisValue		old_x, old_y;
+} ObservingAction;
 
 typedef struct {
 	Action			action;
@@ -99,6 +103,7 @@ typedef struct {
 	Profile			profile;
 	Profile*		original;
 	LockedAction	actions[SRC_MAX];
+	Action*			observed[SRC_MAX];  // Head of observe chain for each source
 } LockProfile;
 
 
@@ -230,7 +235,11 @@ static void locked_profile_dealloc(void* obj) {
 static Action* locked_profile_get_button(Profile* _p, SCButton b) {
 	LockProfile* p = container_of(_p, LockProfile, profile);
 	Source src = scbutton_to_source(b);
-	if ((src != SRC_INVALID) && (p->actions[src].owner != NULL)){
+	// Check observe chain first (allows multi-client stacking)
+	if ((src != SRC_INVALID) && (src < SRC_MAX) && (p->observed[src] != NULL))
+		return p->observed[src];
+	// Then check lock
+	if ((src != SRC_INVALID) && (src < SRC_MAX) && (p->actions[src].owner != NULL)){
 		p->actions[src].original_action = p->original->get_button(p->original, b);
 		return &p->actions[src].action;
 	}
@@ -240,7 +249,11 @@ static Action* locked_profile_get_button(Profile* _p, SCButton b) {
 static Action* locked_profile_get_trigger(Profile* _p, PadStickTrigger what) {
 	LockProfile* p = container_of(_p, LockProfile, profile);
 	Source src = what_to_source(what);
-	if ((src != SRC_INVALID) && (p->actions[src].owner != NULL)) {
+	// Check observe chain first
+	if ((src != SRC_INVALID) && (src < SRC_MAX) && (p->observed[src] != NULL))
+		return p->observed[src];
+	// Then check lock
+	if ((src != SRC_INVALID) && (src < SRC_MAX) && (p->actions[src].owner != NULL)) {
 		p->actions[src].original_action = p->original->get_trigger(p->original, what);
 		return &p->actions[src].action;
 	}
@@ -250,7 +263,11 @@ static Action* locked_profile_get_trigger(Profile* _p, PadStickTrigger what) {
 static Action* locked_profile_get_pad(Profile* _p, PadStickTrigger what) {
 	LockProfile* p = container_of(_p, LockProfile, profile);
 	Source src = what_to_source(what);
-	if ((src != SRC_INVALID) && (p->actions[src].owner != NULL)){
+	// Check observe chain first
+	if ((src != SRC_INVALID) && (src < SRC_MAX) && (p->observed[src] != NULL))
+		return p->observed[src];
+	// Then check lock
+	if ((src != SRC_INVALID) && (src < SRC_MAX) && (p->actions[src].owner != NULL)){
 		p->actions[src].original_action = p->original->get_pad(p->original, what);
 		return &p->actions[src].action;
 	}
@@ -260,7 +277,11 @@ static Action* locked_profile_get_pad(Profile* _p, PadStickTrigger what) {
 static Action* locked_profile_get_stick(Profile* _p, PadStickTrigger what) {
 	LockProfile* p = container_of(_p, LockProfile, profile);
 	Source s = (what == PST_STICK) ? SRC_STICK : SRC_RSTICK;
-	if (p->actions[s].owner != NULL) {
+	// Check observe chain first
+	if ((s < SRC_MAX) && (p->observed[s] != NULL))
+		return p->observed[s];
+	// Then check lock
+	if ((s < SRC_MAX) && (p->actions[s].owner != NULL)) {
 		// I think this is just bad design and departs from spec
 		p->actions[s].original_action = p->original->get_stick(p->original, what);
 		return &p->actions[s].action;
@@ -326,9 +347,7 @@ static void lock_action_whole(Action* _a, Mapper* m, AxisValue x, AxisValue y, P
 static void observe_action_whole(Action* _a, Mapper* m, AxisValue x, AxisValue y, PadStickTrigger what) {
 	lock_action_whole(_a, m, x, y, what);
 	LockedAction* a = container_of(_a, LockedAction, action);
-	if(what_to_source(what) == SRC_LPAD || what_to_source(what) == SRC_RPAD){
-		a->original_action->whole(a->original_action, m, x, y, what);
-	}
+	a->original_action->whole(a->original_action, m, x, y, what);
 }
 
 static void lock_action_trigger(Action* _a, Mapper* m, TriggerValue old_pos, TriggerValue pos, PadStickTrigger what) {
@@ -364,7 +383,65 @@ static void observe_action_button_release(Action* _a, Mapper *m) {
 	a->original_action->button_release(a->original_action, m);
 }
 
-/**  
+// ObservingAction handlers (report to client AND forward to original action)
+static void observing_action_button_press(Action* _a, Mapper *m) {
+	ObservingAction* a = container_of(_a, ObservingAction, action);
+	Controller* c = m->get_controller(m);
+	char* message = strbuilder_fmt("Event: %s %s 1\n", c->get_id(c), source_to_string[a->source]);
+	DDEBUG("OBSERVE ACTION MESSAGE: %s", message);
+	if (message == NULL)
+		sccd_drop_client_asap(a->client);
+	else
+		sccd_socket_consume(a->client, message);
+	// Forward to original action
+	if (a->original_action && a->original_action->button_press)
+		a->original_action->button_press(a->original_action, m);
+}
+
+static void observing_action_button_release(Action* _a, Mapper *m) {
+	ObservingAction* a = container_of(_a, ObservingAction, action);
+	Controller* c = m->get_controller(m);
+	char* message = strbuilder_fmt("Event: %s %s 0\n", c->get_id(c), source_to_string[a->source]);
+	if (message == NULL)
+		sccd_drop_client_asap(a->client);
+	else
+		sccd_socket_consume(a->client, message);
+	// Forward to original action
+	if (a->original_action && a->original_action->button_release)
+		a->original_action->button_release(a->original_action, m);
+}
+
+static void observing_action_whole(Action* _a, Mapper* m, AxisValue x, AxisValue y, PadStickTrigger what) {
+	ObservingAction* a = container_of(_a, ObservingAction, action);
+	if ((x == 0) || (abs(x - a->old_x) > MIN_DIFFERENCE) || (y == 0) || (abs(y - a->old_y) > MIN_DIFFERENCE)) {
+		a->old_x = x; a->old_y = y;
+		
+		Controller* c = m->get_controller(m);
+		char* message = strbuilder_fmt("Event: %s %s %i %i\n", c->get_id(c), scc_what_to_string(what), x, y);
+		if (message == NULL)
+			sccd_drop_client_asap(a->client);
+		else
+			sccd_socket_consume(a->client, message);
+	}
+	// Forward to original action unconditionally
+	if (a->original_action && a->original_action->whole)
+		a->original_action->whole(a->original_action, m, x, y, what);
+}
+
+static void observing_action_trigger(Action* _a, Mapper* m, TriggerValue old_pos, TriggerValue pos, PadStickTrigger what) {
+	ObservingAction* a = container_of(_a, ObservingAction, action);
+	Controller* c = m->get_controller(m);
+	char* message = strbuilder_fmt("Event: %s %s %i %i\n", c->get_id(c), scc_what_to_string(what), pos, old_pos);
+	if (message == NULL)
+		sccd_drop_client_asap(a->client);
+	else
+		sccd_socket_consume(a->client, message);
+	// Forward to original action
+	if (a->original_action && a->original_action->trigger)
+		a->original_action->trigger(a->original_action, m, old_pos, pos, what);
+}
+
+/**
  * Tests if LockProfile is in place and if it's still needed.
  * if there are no locked actions left, deallocates LockProfile
  * and sets original profile back in place
@@ -380,6 +457,69 @@ inline static void maybe_cancel_lock_profile(Client* c, LockProfile* lp) {
 	RC_REL(&lp->profile);
 }
 
+/**
+ * Ensures a LockProfile is in place for the given client's mapper.
+ * Returns the LockProfile, or NULL on allocation failure (OOM).
+ */
+static LockProfile* ensure_lock_profile(Client* c) {
+	DEBUG("ensure_lock_profile: starting");
+	Profile* profile = c->mapper->get_profile(c->mapper);
+	DEBUG("ensure_lock_profile: got profile type=%s", profile->type);
+	if (profile->type == PROFILE_TYPE_LOCK) {
+		// LockProfile already exists
+		DEBUG("ensure_lock_profile: existing profile, returning");
+		return container_of(profile, LockProfile, profile);
+	}
+	
+	DEBUG("ensure_lock_profile: creating new LockProfile");
+	// Create new LockProfile
+	LockProfile* lp = malloc(sizeof(LockProfile));
+	if (lp == NULL) {
+		LERROR("ensure_lock_profile: malloc failed");
+		return NULL;
+	}
+	
+	DEBUG("ensure_lock_profile: initializing RC");
+	RC_INIT(&lp->profile, &locked_profile_dealloc);
+	lp->original = profile;
+	RC_ADD(lp->original);
+	
+	// Initialize actions array
+	DEBUG("ensure_lock_profile: initializing actions array");
+	for (Source src=0; src<SRC_MAX; src++) {
+		scc_action_init(&lp->actions[src].action, PROFILE_TYPE_LOCK, AF_ACTION, NULL, &locked_action_to_string);
+		RC_STATIC(&lp->actions[src].action);
+		lp->actions[src].source = src;
+		lp->actions[src].owner = NULL;
+		lp->actions[src].original_action = NULL;
+		lp->actions[src].old_x = 0;
+		lp->actions[src].old_y = 0;
+		lp->actions[src].action.whole = &lock_action_whole;
+		lp->actions[src].action.trigger = &lock_action_trigger;
+		lp->actions[src].action.button_press = &lock_action_button_press;
+		lp->actions[src].action.button_release = &lock_action_button_release;
+	}
+	
+	// Initialize observed array (all NULL)
+	DEBUG("ensure_lock_profile: initializing observed array");
+	for (Source src=0; src<SRC_MAX; src++) {
+		lp->observed[src] = NULL;
+	}
+	
+	DEBUG("ensure_lock_profile: setting profile type and getters");
+	lp->profile.type = PROFILE_TYPE_LOCK;
+	lp->profile.get_button = &locked_profile_get_button;
+	lp->profile.get_trigger = &locked_profile_get_trigger;
+	lp->profile.get_pad = &locked_profile_get_pad;
+	lp->profile.get_stick = &locked_profile_get_stick;
+	lp->profile.get_gyro = &locked_profile_get_gyro;
+	
+	DEBUG("ensure_lock_profile: setting profile on mapper");
+	c->mapper->set_profile(c->mapper, &lp->profile, false);
+	DEBUG("ensure_lock_profile: done");
+	return lp;
+}
+
 
 const char* sccd_lock_actions(Client* c, StringList sources) {
 	if (list_len(sources) == 0)
@@ -390,54 +530,23 @@ const char* sccd_lock_actions(Client* c, StringList sources) {
 	if (it == NULL)
 		return SCCD_OOM;
 	
-	Profile* profile = c->mapper->get_profile(c->mapper);
-	DDEBUG("got profile %s", profile->type);
-	if (profile->type != PROFILE_TYPE_LOCK) {
-		DDEBUG("making new lock profile");
-		// There was no input locked yet, I have to establish LockProfile 1st
-		LockProfile* lp = malloc(sizeof(LockProfile));
-		if (lp == NULL) {
-			iter_free(it);
-			return SCCD_OOM;
-		}
-		RC_INIT(&lp->profile, &locked_profile_dealloc);
-		lp->original = profile;
-		RC_ADD(lp->original);
-		for (Source src=0; src<SRC_MAX; src++) {
-			scc_action_init(&lp->actions[src].action, PROFILE_TYPE_LOCK, AF_ACTION, NULL, &locked_action_to_string);
-			RC_STATIC(&lp->actions[src].action);
-			lp->actions[src].source = src;
-			lp->actions[src].owner = NULL;
-			lp->actions[src].old_x = 0;
-			lp->actions[src].old_y = 0;
-			lp->actions[src].action.whole = &lock_action_whole;
-			lp->actions[src].action.trigger = &lock_action_trigger;
-			lp->actions[src].action.button_press = &lock_action_button_press;
-			lp->actions[src].action.button_release = &lock_action_button_release;
-		}
-		lp->profile.type = PROFILE_TYPE_LOCK;
-		lp->profile.get_button = &locked_profile_get_button;
-		lp->profile.get_trigger = &locked_profile_get_trigger;
-		lp->profile.get_pad = &locked_profile_get_pad;
-		lp->profile.get_stick = &locked_profile_get_stick;
-		lp->profile.get_gyro = &locked_profile_get_gyro;
-		
-		profile = &lp->profile;
-		c->mapper->set_profile(c->mapper, profile, false);
+	LockProfile* lp = ensure_lock_profile(c);
+	if (lp == NULL) {
+		iter_free(it);
+		return SCCD_OOM;
 	}
 	
-	LockProfile* lp = container_of(profile, LockProfile, profile);
-	// Check if all actions are available for locking
-	FOREACH(const char*, source, it) {
-		Source src = string_to_source(source);
-		if ((src == SRC_INVALID) || (lp->actions[src].owner != NULL)) {
-			if (src == SRC_INVALID)
-				WARN("Client requested to lock '%s', I have no idea what that is", source);
-			maybe_cancel_lock_profile(c, lp);
-			iter_free(it);
-			return source;
-		}
-	}
+	    // Check if all actions are available for locking
+    FOREACH(const char*, source, it) {
+        Source src = string_to_source(source);
+        if ((src == SRC_INVALID) || (lp->actions[src].owner != NULL)) {
+            if (src == SRC_INVALID)
+                WARN("Client requested to lock '%s', I have no idea what that is", source);
+            maybe_cancel_lock_profile(c, lp);
+            iter_free(it);
+            return source;
+        }
+    }
 	
 	// Performs actual locking
 	iter_reset(it);
@@ -445,6 +554,29 @@ const char* sccd_lock_actions(Client* c, StringList sources) {
 	FOREACH(const char*, source, it) {
 		Source src = string_to_source(source);
 		lp->actions[src].owner = c;
+		// Store the original action so observe handlers can forward to it
+		Action* original_action = NULL;
+		switch (src) {
+			case SRC_STICK:
+				original_action = lp->original->get_stick(lp->original, src);
+				break;
+			case SRC_LPAD:
+			case SRC_RPAD:
+				original_action = lp->original->get_pad(lp->original, src);
+				break;
+			case SRC_LTRIGGER:
+			case SRC_RTRIGGER:
+				original_action = lp->original->get_trigger(lp->original, src);
+				break;
+			// case SRC_GYRO:
+			// 	original_action = lp->original->get_gyro(lp->original);
+			// 	break;
+			default:
+				// Button or other source
+				original_action = lp->original->get_button(lp->original, src);
+				break;
+		}
+		lp->actions[src].original_action = original_action;
 		DDEBUG("Source %i/%s locked on %s by client %p", src, source, controller->get_description(controller), c);
 	}	
 	
@@ -453,25 +585,76 @@ const char* sccd_lock_actions(Client* c, StringList sources) {
 }
 
 const char* sccd_observe_actions(Client* c, StringList sources) {
-	char * failed = sccd_lock_actions(c, sources);
-	if (failed == NULL) {
-		ListIterator it = iter_get(sources);
-		if (it == NULL)
-			return SCCD_OOM;
-	
-		Profile* profile = c->mapper->get_profile(c->mapper);
-		LockProfile* lp = container_of(profile, LockProfile, profile);		
-		FOREACH(const char*, source, it) {
-			Source src = string_to_source(source);
-			lp->actions[src].action.whole = &observe_action_whole;
-			lp->actions[src].action.trigger = &observe_action_trigger;
-			// TODO implement observe_action_button_press completely
-			lp->actions[src].action.button_press = &lock_action_button_press;
-			lp->actions[src].action.button_release = &lock_action_button_release;
-		}
+	if (list_len(sources) == 0)
 		return NULL;
+	
+	// Ensure LockProfile is in place (without locking any sources)
+	LockProfile* lp = ensure_lock_profile(c);
+	if (lp == NULL)
+		return SCCD_OOM;
+	
+	Controller* controller = c->mapper->get_controller(c->mapper);
+	DEBUG("Observe: creating %ld ObservingAction wrapper(s)", list_len(sources));
+	
+	FOREACH_IN(char*, source, sources) {
+		Source src = string_to_source(source);
+		if (src == SRC_INVALID) {
+			WARN("Client requested to observe '%s', unknown source", source);
+			continue;
+		}
+		
+		// Fetch current action for this source (either observe chain or original)
+		Action* current_action = NULL;
+		switch (src) {
+			case SRC_STICK:
+				current_action = lp->original->get_stick(lp->original, src);
+				break;
+			case SRC_LPAD:
+			case SRC_RPAD:
+				current_action = lp->original->get_pad(lp->original, src);
+				break;
+			case SRC_LTRIGGER:
+			case SRC_RTRIGGER:
+				current_action = lp->original->get_trigger(lp->original, src);
+				break;
+			// case SRC_GYRO:
+			// 	current_action = lp->original->get_gyro(lp->original);
+			// 	break;
+			default:
+				// Button or other source
+				current_action = lp->original->get_button(lp->original, src);
+				break;
+		}
+		
+		// Create new ObservingAction that wraps the current action
+		ObservingAction* oa = malloc(sizeof(ObservingAction));
+		if (oa == NULL)
+			return SCCD_OOM;
+		
+		// Initialize the wrapper action
+		scc_action_init(&oa->action, PROFILE_TYPE_LOCK, AF_ACTION, NULL, &locked_action_to_string);
+		RC_STATIC(&oa->action);
+		
+		// Capture original action eagerly
+		oa->original_action = current_action;
+		oa->client = c;
+		oa->source = src;
+		oa->old_x = 0;
+		oa->old_y = 0;
+		
+		// Set observe function pointers (report + forward)
+		oa->action.button_press = &observing_action_button_press;
+		oa->action.button_release = &observing_action_button_release;
+		oa->action.whole = &observing_action_whole;
+		oa->action.trigger = &observing_action_trigger;
+		
+		// Store this ObservingAction in the observed chain
+		lp->observed[src] = &oa->action;
+		
+		DDEBUG("Source %i/%s observed by client %p", src, source, c);
 	}
-	return failed;
+	
+	return NULL;
 }
 
 void sccd_unlock_actions(Client* c) {
@@ -480,10 +663,28 @@ void sccd_unlock_actions(Client* c) {
 		// Unlocking not needed
 		return;
 	LockProfile* lp = container_of(profile, LockProfile, profile);
+	
+	// Clear locks
 	for (Source src=0; src<SRC_MAX; src++) {
 		if (lp->actions[src].owner == c)
 			lp->actions[src].owner = NULL;
 	}
+	
+	// Clear observes - only remove if it's an ObservingAction we created
+	// (check by looking at the action's function pointers)
+	for (Source src=0; src<SRC_MAX; src++) {
+		Action* a = lp->observed[src];
+		if (a != NULL && a->button_press == &observing_action_button_press) {
+			// This is an ObservingAction - check if it's ours
+			ObservingAction* oa = container_of(a, ObservingAction, action);
+			if (oa->client == c) {
+				// This observer belongs to us - remove it and restore the chain
+				lp->observed[src] = oa->original_action;
+				free(oa);
+			}
+		}
+	}
+	
 	maybe_cancel_lock_profile(c, lp);
 }
 

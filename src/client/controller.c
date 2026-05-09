@@ -199,6 +199,66 @@ bool _sccc_observe(SCCClient* _c, int handle, const char* src1, ...) {
 	return rv;
 }
 
+bool sccc_lock_list(SCCClient* _c, int handle, StringList sources) {
+	struct _SCCClient* c = container_of(_c, struct _SCCClient, client);
+	if (!request_controller(c, handle)) return false;
+	if (list_len(sources) == 0)
+		return true;
+
+	StrBuilder* sb = strbuilder_new();
+	if (sb == NULL) return false;
+	strbuilder_add(sb, "Lock:");
+	FOREACH_IN(char*, src, sources) {
+		strbuilder_add(sb, " ");
+		strbuilder_add(sb, src);
+	}
+	if (strbuilder_failed(sb)) {
+		strbuilder_free(sb);
+		return false;
+	}
+
+	char* buffer = strbuilder_consume(sb);
+	if (buffer == NULL) return false;
+	DDEBUG("Locking (list) MESSAGE: %s", buffer);
+	int32_t id = sccc_request(&c->client, buffer);
+	free(buffer);
+	if (id < 0) return false;
+	buffer = sccc_get_response(&c->client, id);
+	bool rv = sccc_is_ok(buffer);
+	free(buffer);
+	return rv;
+}
+
+bool sccc_observe_list(SCCClient* _c, int handle, StringList sources) {
+	struct _SCCClient* c = container_of(_c, struct _SCCClient, client);
+	if (!request_controller(c, handle)) return false;
+	if (list_len(sources) == 0)
+		return true;
+
+	StrBuilder* sb = strbuilder_new();
+	if (sb == NULL) return false;
+	strbuilder_add(sb, "Observe:");
+	FOREACH_IN(char*, src, sources) {
+		strbuilder_add(sb, " ");
+		strbuilder_add(sb, src);
+	}
+	if (strbuilder_failed(sb)) {
+		strbuilder_free(sb);
+		return false;
+	}
+
+	char* buffer = strbuilder_consume(sb);
+	if (buffer == NULL) return false;
+	DDEBUG("Observing (list) MESSAGE: %s", buffer);
+	int32_t id = sccc_request(&c->client, buffer);
+	free(buffer);
+	if (id < 0) return false;
+	buffer = sccc_get_response(&c->client, id);
+	bool rv = sccc_is_ok(buffer);
+	free(buffer);
+	return rv;
+}
+
 uint32_t sccc_get_controller_handle(SCCClient* _c, const char* id) {
 	// DDEBUG("sccc_get_controller_handle by id %s",id);
 	struct _SCCClient* c = container_of(_c, struct _SCCClient, client);
