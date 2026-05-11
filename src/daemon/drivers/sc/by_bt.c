@@ -21,10 +21,17 @@
 #define CONTROLIDX			-1
 #define CHUNK_LENGTH		64
 #define VENDOR_ID			0x28de
-#define PRODUCT_ID			0x1106
+#define PRODUCT_ID			0x1106	// D0G (original Steam Controller)
+#define TRITON_BLE_PID		0x1303	// Triton (Steam Controller 2025)
 #define PACKET_SIZE 		20
 #define LONG_PACKET 		0x80
 #define BT_BUTTONS_BITS 	23
+
+// Triton Report IDs (over BLE)
+#define ID_TRITON_CONTROLLER_STATE_BLE		0x45
+#define ID_TRITON_BATTERY_STATUS			0x43
+#define ID_TRITON_WIRELESS_STATUS			0x79
+#define ID_TRITON_WIRELESS_STATUS_X			0x46
 
 static controller_available_cb controller_available = NULL;
 
@@ -38,11 +45,141 @@ enum BtInPacketType {
 	PING     = 0x5000,
 };
 
+// Triton structures (for BLE)
+typedef struct {
+	uint32_t timestamp;
+	int16_t sAccelX;
+	int16_t sAccelY;
+	int16_t sAccelZ;
+	int16_t sGyroX;
+	int16_t sGyroY;
+	int16_t sGyroZ;
+} TritonIMU_t;
+
+typedef struct {
+	uint8_t seq_num;
+	uint32_t buttons;
+	int16_t sTriggerLeft;
+	int16_t sTriggerRight;
+	int16_t sLeftStickX;
+	int16_t sLeftStickY;
+	int16_t sRightStickX;
+	int16_t sRightStickY;
+	int16_t sLeftPadX;
+	int16_t sLeftPadY;
+	uint16_t ucPressureLeft;
+	int16_t sRightPadX;
+	int16_t sRightPadY;
+	uint16_t ucPressureRight;
+	TritonIMU_t imu;
+} TritonReport_t;
+
+typedef struct {
+	uint8_t ucChargeState;
+	uint8_t ucBatteryLevel;
+	uint16_t sBatteryVoltage;
+	uint16_t sSystemVoltage;
+	uint16_t sInputVoltage;
+	uint16_t sCurrent;
+	uint16_t sInputCurrent;
+	uint16_t sTemperature;
+} TritonBatteryStatus_t;
+
+typedef struct {
+	uint8_t state;
+} TritonWirelessStatus_t;
+
 static inline void debug_packet(char* buffer, size_t size) {
 	size_t i;
 	for(i=0; i<size; i++)
 		printf("%02x", buffer[i] & 0xff);
 	DDEBUG("\n");
+}
+
+/**
+ * Maps Triton button bitmap to SC button bitmap
+ */
+static uint32_t triton_buttons_to_sc_buttons(uint32_t triton_buttons) {
+	uint32_t sc_buttons = 0;
+	
+	// Action buttons
+	if (triton_buttons & 0x00000001) sc_buttons |= SCB_A;
+	if (triton_buttons & 0x00000002) sc_buttons |= SCB_B;
+	if (triton_buttons & 0x00000004) sc_buttons |= SCB_X;
+	if (triton_buttons & 0x00000008) sc_buttons |= SCB_Y;
+	
+	// Bumpers
+	if (triton_buttons & 0x00080000) sc_buttons |= SCB_LB;
+	if (triton_buttons & 0x00000200) sc_buttons |= SCB_RB;
+	
+	// Triggers (buttons)
+	// Note: Triton uses stick press for L3/R3
+	if (triton_buttons & 0x00008000) sc_buttons |= SCB_LT;
+	if (triton_buttons & 0x00000020) sc_buttons |= SCB_RT;
+	
+	// Menu buttons
+	if (triton_buttons & 0x00004000) sc_buttons |= SCB_BACK;
+	if (triton_buttons & 0x00000040) sc_buttons |= SCB_START;
+	if (triton_buttons & 0x00010000) sc_buttons |= SCB_C;
+	
+	// Paddles and special buttons (Triton-specific)
+	if (triton_buttons & 0x00000010) sc_buttons |= SCB_QAM;
+	if (triton_buttons & 0x00000080) sc_buttons |= SCB_R4;
+	if (triton_buttons & 0x00020000) sc_buttons |= SCB_L4;
+	if (triton_buttons & 0x00000100) sc_buttons |= SCB_R5;
+	if (triton_buttons & 0x00040000) sc_buttons |= SCB_L5;
+	
+	// Stick and pad touches/clicks
+	if (triton_buttons & 0x00002000) sc_buttons |= SCB_LPAD;
+	if (triton_buttons & 0x00000800) sc_buttons |= SCB_RPAD;
+	if (triton_buttons & 0x00001000) sc_buttons |= SCB_LGRIP;
+	if (triton_buttons & 0x00000400) sc_buttons |= SCB_RGRIP;
+	
+	return sc_buttons;
+}
+
+/**
+ * Handles Triton controller state report (0x45)
+ * Complete state packet in single BLE notification
+ */
+static int triton_handle_input(SCController* sc, const uint8_t* data, size_t len) {
+	if (len < sizeof(TritonReport_t) + 1) {
+		DDEBUG("Triton report too short: %zu bytes", len);
+		return 0;
+	}
+	
+	TritonReport_t* report = (TritonReport_t*)&data[1];
+	
+	// Map buttons
+	sc->input.buttons = triton_buttons_to_sc_buttons(report->buttons);
+	
+	// Triggers (0-32767 -> 0-255)
+	sc->input.ltrig = (report->sTriggerLeft >> 7) & 0xFF;
+	sc->input.rtrig = (report->sTriggerRight >> 7) & 0xFF;
+	
+	// Sticks
+	sc->input.stick_x = report->sLeftStickX;
+	sc->input.stick_y = report->sLeftStickY;
+	
+	// Pads with pressure sensitivity
+	sc->input.lpad_x = report->sLeftPadX;
+	sc->input.lpad_y = report->sLeftPadY;
+	sc->input.rpad_x = report->sRightPadX;
+	sc->input.rpad_y = report->sRightPadY;
+	
+	// IMU - convert raw to similar format as D0G
+	// Gyro: raw to rad/s conversion
+	sc->input.gyro.gpitch = report->imu.sGyroX;
+	sc->input.gyro.groll = report->imu.sGyroY;
+	sc->input.gyro.gyaw = report->imu.sGyroZ;
+	
+	// Set quaternion to identity (Triton doesn't send quaternion)
+	sc->input.gyro.q0 = 16384;  // 1.0 in Q15 fixed point
+	sc->input.gyro.q1 = 0;
+	sc->input.gyro.q2 = 0;
+	sc->input.gyro.q3 = 0;
+	
+	return 1;
 }
 
 char tmp_buffer[256] = "";
@@ -142,8 +279,38 @@ void input_interrupt_cb(Daemon* d, InputDevice* dev, uint8_t endpoint, const uin
 		// TODO: Deallocate sc
 		return;
 	}
-	//debug_packet((char *)data, PACKET_SIZE * 2);
-	int status = bt_handle_input(sc, data);
+	
+	int status = 0;
+	
+	// Update Triton lizard mode watchdog (needs periodic refresh every 3 seconds)
+	if (sc->model == SC_MODEL_TRITON) {
+		// This will update lizard mode if needed
+		// TODO: Implement triton_check_lizard_mode_watchdog() in common.c
+		// triton_check_lizard_mode_watchdog(sc);
+	}
+	
+	// Handle Triton and D0G differently based on controller model
+	if (sc->model == SC_MODEL_TRITON) {
+		// Triton sends complete state in a single BLE notification
+		// First byte is the report ID
+		if (data[0] == ID_TRITON_CONTROLLER_STATE_BLE) {
+			status = triton_handle_input(sc, data, PACKET_SIZE * 2);
+		} else if (data[0] == ID_TRITON_BATTERY_STATUS) {
+			// Battery status report - could be handled separately
+			DDEBUG("Triton battery status report received");
+			// TODO: Handle battery status
+		} else if (data[0] == ID_TRITON_WIRELESS_STATUS || data[0] == ID_TRITON_WIRELESS_STATUS_X) {
+			// Wireless status report
+			DDEBUG("Triton wireless status report received");
+			// TODO: Handle wireless status
+		} else {
+			DDEBUG("Unknown Triton report ID: 0x%02X", data[0]);
+		}
+	} else {
+		// D0G (original Steam Controller) - uses chunked packets
+		status = bt_handle_input(sc, (uint8_t*)data);
+	}
+	
 	if(status == 1){
 		//TODO input rotation support
 		/*if (
@@ -216,16 +383,43 @@ static bool hotplug_cb(Daemon* daemon, const InputDeviceData* idata) {
 		return true;
 	}
 	SCController* sc = NULL;
-	DDEBUG("%s",idata->path);
+	
+	char* product_str = idata->get_prop(idata, "product_id");  
+    uint16_t product_id = 0;  
+      
+    if (product_str != NULL) {  
+        product_id = (uint16_t)strtol(product_str, NULL, 16);  
+        free(product_str);  
+    }  	
+	SCControllerModel controller_model = SC_MODEL_ORIGINAL;	// Default to original SC
+	
+	DDEBUG("%s (product ID: 0x%04x)", idata->path, product_id);
+	
+	// Determine controller model based on product ID
+	if (product_id == TRITON_BLE_PID) {
+		controller_model = SC_MODEL_TRITON;
+		DEBUG("Detected Triton (Steam Controller 2025)");
+	} else if (product_id == PRODUCT_ID) {
+		controller_model = SC_MODEL_ORIGINAL;
+		DEBUG("Detected D0G (Original Steam Controller)");
+	} else {
+		// Unknown product ID, still try to handle it as original SC
+		WARN("Unknown BLE Steam Controller product ID: 0x%04x, assuming D0G", product_id);
+		controller_model = SC_MODEL_ORIGINAL;
+	}
+	
 	InputDevice* 	dev = idata->open(idata);
 	if (dev == NULL) {
 		LERROR("Failed to open '%s'", idata->path);
 		return true;		// and nothing happens
 	}
+	// All BLE controllers use SC_BT connection type, differentiated by model
 	if ((sc = create_usb_controller(daemon, dev, SC_BT, CONTROLIDX)) == NULL) {
 		LERROR("Failed to allocate memory");
 		goto hotplug_cb_fail;
 	}
+	sc->model = controller_model;
+	
 	if (dev->sys == USB) {
 		if (dev->claim_interfaces_by(dev, 3, 0, 0) <= 0) {
 			LERROR("Failed to claim interfaces");
@@ -256,7 +450,8 @@ static bool hotplug_cb(Daemon* daemon, const InputDeviceData* idata) {
 		LERROR("Failed to setup interrupt read loop");
 		goto hotplug_cb_failed_to_configure;
 	}
-	DEBUG("New BLE Steam Controller with serial %s connected", sc->serial);
+	DEBUG("New BLE Steam Controller (%s) with serial %s connected", 
+		  sc->model == SC_MODEL_TRITON ? "Triton" : "D0G", sc->serial);
 	sc->state = SS_READY;
 	if (!daemon->controller_add(&sc->controller)) {
 		// This shouldn't happen unless memory is running out
@@ -277,18 +472,31 @@ hotplug_cb_fail:
 
 static bool driver_start(Driver* drv, Daemon* daemon) {
 	HotplugFilter filter_vendor  = { .type=SCCD_HOTPLUG_FILTER_VENDOR,	.vendor=VENDOR_ID };
-	HotplugFilter filter_product = { .type=SCCD_HOTPLUG_FILTER_PRODUCT,	.product=PRODUCT_ID };
+	HotplugFilter filter_product_d0g = { .type=SCCD_HOTPLUG_FILTER_PRODUCT,	.product=PRODUCT_ID };
+	HotplugFilter filter_product_triton = { .type=SCCD_HOTPLUG_FILTER_PRODUCT,	.product=TRITON_BLE_PID };
 	HotplugFilter filter_idx	 = { .type=SCCD_HOTPLUG_FILTER_IDX,		.idx=CONTROLIDX };
 #if defined(_WIN32)
-	#define FILTERS &filter_vendor, &filter_product, &filter_idx
-	if (!daemon->hotplug_cb_add(HIDAPI, hotplug_cb, FILTERS, NULL)) {
-		LERROR("Failed to register hotplug callback");
+	// Windows: Register for both D0G and Triton
+	#define FILTERS_D0G &filter_vendor, &filter_product_d0g, &filter_idx
+	#define FILTERS_TRITON &filter_vendor, &filter_product_triton, &filter_idx
+	if (!daemon->hotplug_cb_add(HIDAPI, hotplug_cb, FILTERS_D0G, NULL)) {
+		LERROR("Failed to register hotplug callback for D0G");
+		return false;
+	}
+	if (!daemon->hotplug_cb_add(HIDAPI, hotplug_cb, FILTERS_TRITON, NULL)) {
+		LERROR("Failed to register hotplug callback for Triton");
 		return false;
 	}
 #elif defined(__BSD__)
-	#define FILTERS &filter_vendor, &filter_product, &filter_idx
-	if (!daemon->hotplug_cb_add(UHID, hotplug_cb, FILTERS, NULL)) {
-		LERROR("Failed to register hotplug callback");
+	// BSD: Register for both D0G and Triton
+	#define FILTERS_D0G &filter_vendor, &filter_product_d0g, &filter_idx
+	#define FILTERS_TRITON &filter_vendor, &filter_product_triton, &filter_idx
+	if (!daemon->hotplug_cb_add(UHID, hotplug_cb, FILTERS_D0G, NULL)) {
+		LERROR("Failed to register hotplug callback for D0G");
+		return false;
+	}
+	if (!daemon->hotplug_cb_add(UHID, hotplug_cb, FILTERS_TRITON, NULL)) {
+		LERROR("Failed to register hotplug callback for Triton");
 		return false;
 	}
 #else
@@ -296,15 +504,15 @@ static bool driver_start(Driver* drv, Daemon* daemon) {
 	   On Linux, Bluetooth devices detected via input subsystem are classified as:
 	   - HIDAPI if use-hidapi is enabled (preferred for better compatibility)
 	   - BT if use-hidapi is disabled */
-	#define FILTERS &filter_vendor, &filter_product
+	#define FILTERS_VENDOR &filter_vendor
 	if (daemon->get_hidapi_enabled()) {
-		if (!daemon->hotplug_cb_add(HIDAPI, hotplug_cb, FILTERS, NULL)) {
+		if (!daemon->hotplug_cb_add(HIDAPI, hotplug_cb, FILTERS_VENDOR, NULL)) {
 			LERROR("Failed to register hotplug callback for HIDAPI");
 			return false;
 		}
 	}
 	/* Also always register for BT subsystem for Bluetooth devices that might not be detected via HIDAPI */
-	if (!daemon->hotplug_cb_add(BT, hotplug_cb, FILTERS, NULL)) {
+	if (!daemon->hotplug_cb_add(BT, hotplug_cb, FILTERS_VENDOR, NULL)) {
 		LERROR("Failed to register hotplug callback for BT");
 		return false;
 	}

@@ -18,6 +18,13 @@ typedef enum {
 	SS_FAILED = 2
 } SCControllerState;
 
+/** Controller model - distinguishes between original SC and Triton */
+typedef enum {
+	SC_MODEL_ORIGINAL = 0,		// Original Steam Controller
+	SC_MODEL_TRITON = 1,		// Steam Controller 2025 (Triton)
+	SC_MODEL_DECK = 2,			// Steam Deck (builtin controller)
+} SCControllerModel;
+
 #define MAX_SERIAL_LEN	24
 /** MAX_DESC_LEN has to fit "<SCByCable SERIAL>" */
 #define MAX_DESC_LEN (15 + MAX_SERIAL_LEN)
@@ -94,6 +101,12 @@ enum SCButtons {
 	SCB_RT			= 0b00000000000000000000100000000,
 	SCB_CPADTOUCH	= 0b00000000000000000000000000100, // # Available on DS4 pad
 	SCB_CPADPRESS	= 0b00000000000000000000000000010, // # Available on DS4 pad
+	// Triton-specific buttons (new Steam Controller 2025)
+	SCB_QAM			= 0b10000000000000000000000000, // Position 26 - QAM button
+	SCB_R4			= 0b01000000000000000000000000, // Position 25 - Right paddle 1
+	SCB_L4			= 0b00100000000000000000000000, // Position 24 - Left paddle 1
+	SCB_R5			= 0b00010000000000000000000000, // Position 23 - Right paddle 2
+	SCB_L5			= 0b00001000000000000000000000, // Position 22 - Left paddle 2
 };
 
 static uint32_t BT_BUTTONS[] = {
@@ -127,7 +140,8 @@ struct SCController {
 	Controller			controller;
 	Daemon*				daemon;
 	Mapper*				mapper;
-	SCControllerType	type;
+	SCControllerType	type;		// Connection type (wired, wireless, BT, deck)
+	SCControllerModel	model;		// Controller model (original, Triton, Deck)
 	SCControllerState	state;
 	InputDevice*		dev;
 	bool 				long_packet;
@@ -142,6 +156,7 @@ struct SCController {
 	uint8_t				led_level;		// 1 to 100
 	HapticData			hdata[2];
 	ControllerInput		input;
+	uint64_t			last_lizard_update_ms;	// For Triton lizard mode watchdog
 };
 
 typedef enum {
@@ -178,6 +193,17 @@ typedef enum {
 	CT_CONFIGURE = 0x32,
 	CONFIGURE_BT = 0x18,
 } SCConfigType;
+
+/** Triton-specific feature report IDs and constants */
+#define TRITON_BLE_PID				0x1303	// Triton product ID
+#define ID_SET_SETTINGS_VALUES		0x87	// Feature report ID for settings
+#define SETTING_LIZARD_MODE			0x0A	// Lizard mode setting ID
+#define LIZARD_MODE_OFF				0x00	// Disable lizard mode value
+#define SETTING_IMU_MODE			0x31	// IMU/gyro mode setting ID
+#define SETTING_GYRO_MODE_OFF		0x0000
+#define SETTING_GYRO_MODE_SEND_RAW_ACCEL 0x0008
+#define SETTING_GYRO_MODE_SEND_RAW_GYRO  0x0010
+#define ID_OUT_REPORT_HAPTIC_RUMBLE	0x80	// Triton haptic rumble report ID
 
 /** Returns NULL on failure */
 SCController* create_usb_controller(Daemon* daemon, InputDevice* dev, SCControllerType type, uint16_t idx);
