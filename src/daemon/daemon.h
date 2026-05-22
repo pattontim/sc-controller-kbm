@@ -243,6 +243,7 @@ bool sccd_device_monitor_test_filter(Daemon* d, const InputDeviceData* data, con
  * A subsystem is enabled if at least one hotplug callback is registered for it.
  */
 uint32_t sccd_device_monitor_get_enabled_subsystems(Daemon* d);
+#ifdef _WIN32
 struct Win32InputDeviceData {
 	InputDeviceData		idev;
 	Vendor				vendor;

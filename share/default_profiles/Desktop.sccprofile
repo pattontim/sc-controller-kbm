@@ -35,7 +35,7 @@
 	},
 	
 	"pad_right": {
-		"action": "smooth(8, 0.78, 2.0, feedback(RIGHT, 256, ball(mouse())))"
+		"action": "dampen(5.0, RT, smooth(8, 0.78, 2.0, feedback(RIGHT, 256, ball(mouse()))))"
 	},
 	
 	"cpad": {
