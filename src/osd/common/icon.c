@@ -52,7 +52,7 @@ static void on_allocated(GtkWidget* widget, GdkRectangle* allocation, gpointer d
 }
 
 GdkPixbuf* menu_icon_get_pixbuf(MenuIcon* w) {
-	MenuIconPrivate* priv = G_TYPE_INSTANCE_GET_PRIVATE(w, MENU_ICON_TYPE, MenuIconPrivate);
+	MenuIconPrivate* priv = menu_icon_get_instance_private(w);
 	return priv->pb;
 }
 
@@ -66,7 +66,7 @@ void menu_icon_draw_pixbuf(GdkPixbuf* pb, cairo_t* target, guint width, guint he
 		if ((scaled == NULL) || (surf == NULL)) {
 			LERROR("OOM while scaling icon");
 			if (surf != NULL) cairo_surface_destroy(surf);
-			if (scaled != NULL) gdk_pixbuf_unref(scaled);
+			if (scaled != NULL) g_object_unref(scaled);
 			return;
 		}
 	} else {
@@ -87,11 +87,11 @@ void menu_icon_draw_pixbuf(GdkPixbuf* pb, cairo_t* target, guint width, guint he
 	}
 	cairo_surface_destroy(surf);
 	if (scaled != NULL)
-		gdk_pixbuf_unref(scaled);
+		g_object_unref(scaled);
 }
 
 static bool on_draw(GtkWidget* widget, cairo_t* cr, gpointer data) {
-	MenuIconPrivate* priv = G_TYPE_INSTANCE_GET_PRIVATE(widget, MENU_ICON_TYPE, MenuIconPrivate);
+	MenuIconPrivate* priv = menu_icon_get_instance_private((MenuIcon*)widget);
 	GtkStyleContext* context = gtk_widget_get_style_context(widget);
 	guint width = gtk_widget_get_allocated_width(widget);
 	guint height = gtk_widget_get_allocated_height(widget);
@@ -111,19 +111,19 @@ static bool on_draw(GtkWidget* widget, cairo_t* cr, gpointer data) {
 
 
 static bool on_destroy(GtkWidget *widget, gpointer data) {
-	MenuIconPrivate* priv = G_TYPE_INSTANCE_GET_PRIVATE(widget, MENU_ICON_TYPE, MenuIconPrivate);
+	MenuIconPrivate* priv = menu_icon_get_instance_private((MenuIcon*)widget);
 	if (priv->pb != NULL) {
-		gdk_pixbuf_unref(priv->pb);
+		g_object_unref(priv->pb);
 		priv->pb = NULL;
 	}
 	return false;
 }
 
 bool menu_icon_set_filename(MenuIcon* mi, const char* filename) {
-	MenuIconPrivate* priv = G_TYPE_INSTANCE_GET_PRIVATE(mi, MENU_ICON_TYPE, MenuIconPrivate);
+	MenuIconPrivate* priv = menu_icon_get_instance_private(mi);
 	GError* err = NULL;
 	if (priv->pb != NULL) {
-		gdk_pixbuf_unref(priv->pb);
+		g_object_unref(priv->pb);
 		priv->pb = NULL;
 	}
 	priv->pb = gdk_pixbuf_new_from_file(filename, &err);

@@ -1,6 +1,6 @@
 app-id: com.github.kozec.scc-daemon
 runtime: org.freedesktop.Platform
-runtime-version: "23.08"
+runtime-version: "25.08"
 sdk: org.freedesktop.Sdk
 sdk-extensions:
   - org.freedesktop.Sdk.Extension.rust-stable
@@ -21,9 +21,7 @@ finish-args:
   - --device=all
   # IPC for X11
   - --share=ipc
-  # X11 socket for daemon and OSD components
-  - --socket=x11
-  # Fallback for Wayland
+  # X11 socket for daemon and OSD components (fallback-x11 for Wayland compatibility)
   - --socket=fallback-x11
   - --socket=wayland
   # Needed for udev
@@ -47,8 +45,8 @@ modules:
       - --disable-udev
     sources:
       - type: archive
-        url: https://github.com/libusb/libusb/releases/download/v1.0.27/libusb-1.0.27.tar.bz2
-        sha256: ffaa41d741a8a3bee244ac8e54a72ea05bf2879663c098c82fc5757853441575
+        url: https://github.com/libusb/libusb/releases/download/v1.0.30/libusb-1.0.30.tar.bz2
+        sha256: fea36f34f9156400209595e300840767ab1a385ede1dc7ee893015aea9c6dbaf
 
   # libudev is needed for device detection
   - name: eudev
@@ -70,15 +68,15 @@ modules:
     buildsystem: autotools
     sources:
       - type: archive
-        url: https://www.freedesktop.org/software/libevdev/libevdev-1.12.0.tar.xz
-        sha256: 2f729e3480695791f9482e8388bd723402b89f0eaf118057bbdea3cecee9b237
+        url: https://www.freedesktop.org/software/libevdev/libevdev-1.13.6.tar.xz
+        sha256: 73f215eccbd8233f414737ac06bca2687e67c44b97d2d7576091aa9718551110
   
   - name: hidapi
     buildsystem: cmake-ninja
     sources:
      - type: archive
-       url: https://github.com/libusb/hidapi/archive/refs/tags/hidapi-0.12.0.zip
-       sha256: d6b8cdf18cdee5ac5213999943a4b8a30c0443211cea4f831437706ffb71d4cd
+       url: https://github.com/libusb/hidapi/archive/refs/tags/hidapi-0.15.0.zip
+       sha256: dea0c29849e7cac86a4561bf36ba0d97a755a16dc99b9e75714f4af7ea2af2f1
 
   # SC-Controller daemon
   - name: scc-daemon

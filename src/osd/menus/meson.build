@@ -3,7 +3,7 @@ osd_menu_lib = shared_library('scc-osd-menu',
 	link_with: [ osd_lib, utils_lib, client_lib, config_lib, gio_client_lib,
 				 slave_mapper_lib, virtual_device_lib, tools_lib, actions_lib,
 				 parser_lib ],
-	c_args: ['-Wno-deprecated-declarations'],
+	c_args: ['-Wdeprecated-declarations'],
 	dependencies: [
 		dependency('gtk+-3.0', version: '>=3.22.0'),
 		dependency('glib-2.0', version: '>=2.56.0'),

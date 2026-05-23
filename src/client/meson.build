@@ -46,7 +46,7 @@ slave_mapper_lib = shared_library('scc-slave-mapper',
 gio_client_lib = shared_library('scc-gio-client',
 	include_directories: include,
 	link_with: [ client_lib ],
-	c_args: ['-Wno-deprecated-declarations'],
+	c_args: ['-Wdeprecated-declarations'],
 	dependencies: [
 		dependency('glib-2.0', version: '>=2.56.0'),
 	],

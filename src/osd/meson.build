@@ -40,7 +40,7 @@ scc_osd_keyboard = executable('scc-osd-keyboard',
 run_target('scc-osd-menu',
 	command: [
 		scc_osd_menu,
-		'-f', meson.source_root() / 'share' / 'default_menus' / 'Default.menu',
+		'-f', meson.project_source_root() / 'share' / 'default_menus' / 'Default.menu',
 		'-t', 'radial',
 		'-c', 'LEFT',
 	],

@@ -109,18 +109,18 @@ params_lib = static_library('params',
 	link_with: [utils_lib],
 	include_directories: include,
 	sources: run_command('find', 'src/actions/parameter',
-			'-maxdepth', '1', '-name', C_FILES).stdout().strip().split('\n')
+			'-maxdepth', '1', '-name', C_FILES, check: true).stdout().strip().split('\n')
 )
 
 param_checker_lib = static_library('param_checker',
 	link_with: [utils_lib],
 	include_directories: include,
 	sources: run_command('find', 'src/actions/param_checker',
-			'-maxdepth', '1', '-name', C_FILES).stdout().strip().split('\n')
+			'-maxdepth', '1', '-name', C_FILES, check: true).stdout().strip().split('\n')
 )
 
 action_files = (run_command('find', 'src/actions/',
-			'-name', C_FILES).stdout().strip().split('\n'))
+			'-name', C_FILES, check: true).stdout().strip().split('\n'))
 actions_lib = shared_library('scc-actions',
 	link_with: [ utils_lib, tools_lib, params_lib, param_checker_lib,
 				conversions_lib ],
@@ -171,14 +171,14 @@ bindings_lib = shared_library('scc-bindings',
 
 
 run_target_env = environment()
-run_target_env.set('SCC_SHARED', meson.source_root())
-run_target_env.set('SCC_DRIVERS', meson.build_root() / 'src' / 'daemon' / 'drivers')
-run_target_env.append('PATH', meson.build_root())
-run_target_env.append('PATH', meson.build_root() / 'src' / 'client')
-run_target_env.append('PATH', meson.build_root() / 'src' / 'osd' / 'common')
-run_target_env.append('PATH', meson.build_root() / 'src' / 'osd' / 'menus')
-run_target_env.append('PATH', meson.build_root() / 'src' / 'osd' / 'keyboard')
-run_target_env.append('PATH', meson.build_root() / 'src' / 'virtual-device')
+run_target_env.set('SCC_SHARED', meson.project_source_root())
+run_target_env.set('SCC_DRIVERS', meson.project_build_root() / 'src' / 'daemon' / 'drivers')
+run_target_env.append('PATH', meson.project_build_root())
+run_target_env.append('PATH', meson.project_build_root() / 'src' / 'client')
+run_target_env.append('PATH', meson.project_build_root() / 'src' / 'osd' / 'common')
+run_target_env.append('PATH', meson.project_build_root() / 'src' / 'osd' / 'menus')
+run_target_env.append('PATH', meson.project_build_root() / 'src' / 'osd' / 'keyboard')
+run_target_env.append('PATH', meson.project_build_root() / 'src' / 'virtual-device')
 
 
 subdir('src/virtual-device')

@@ -113,8 +113,8 @@ static void osd_window_show(GtkWidget* widget) {
 	GdkScreen* scr = gdk_screen_get_default();
 
 	GdkDisplay *display = gdk_display_get_default();
-	GdkDeviceManager *device_manager = gdk_display_get_device_manager(display);
-	GdkDevice *pointer = gdk_device_manager_get_client_pointer(device_manager);
+	GdkSeat *seat = gdk_display_get_default_seat(display);
+	GdkDevice *pointer = gdk_seat_get_pointer(seat);
 	
 	int xm, ym;
 
@@ -127,26 +127,20 @@ static void osd_window_show(GtkWidget* widget) {
 	gdk_device_get_position(pointer, NULL, &xm, &ym);
 #endif
 
-	gint n_monitors = gdk_screen_get_n_monitors(scr);
-
-    gint monitor_num = gdk_screen_get_monitor_at_point(scr, xm, ym);
+    GdkMonitor *monitor = gdk_display_get_monitor_at_point(display, xm, ym);
 	GdkRectangle monitor_rect;
-
-	GdkMonitor *monitor = gdk_display_get_monitor(display, monitor_num);
 	double monitor_scale_factor = (double)gdk_monitor_get_scale_factor(monitor);
-	gdk_screen_get_monitor_geometry(scr, monitor_num, &monitor_rect);
+	gdk_monitor_get_geometry(monitor, &monitor_rect);
 
 // bug: first monitor is not scaled correctly, then 
 // the second+ monitor are incorrectly scaled. Reversed.
 #ifdef _WIN32
-    if (monitor_num > 0 && n_monitors > 1) { 
-		HDC hdc = GetDC(NULL);
-		int dpiX = GetDeviceCaps(hdc, LOGPIXELSX);
-		int dpiY = GetDeviceCaps(hdc, LOGPIXELSY);
-		ReleaseDC(NULL, hdc);
-		monitor_scale_factor = (dpiX / 96.0);
-		g_print("Monitor scale factor: %f\n", monitor_scale_factor);
-    } 
+	HDC hdc = GetDC(NULL);
+	int dpiX = GetDeviceCaps(hdc, LOGPIXELSX);
+	int dpiY = GetDeviceCaps(hdc, LOGPIXELSY);
+	ReleaseDC(NULL, hdc);
+	monitor_scale_factor = (dpiX / 96.0);
+	g_print("Monitor scale factor: %f\n", monitor_scale_factor);
 #endif
 	monitor_rect.x /= monitor_scale_factor;
 	monitor_rect.y /= monitor_scale_factor;
@@ -162,9 +156,9 @@ static void osd_window_show(GtkWidget* widget) {
 	gtk_widget_realize(widget);
 	osd_window_compute_position(OSD_WINDOW(widget), &x, &y);
 	if (x < 0)	// Negative X position is counted from right border
-		x = gdk_screen_get_width(scr) - gtk_widget_get_allocated_width(widget) + x + 1;
+		x = monitor_rect.x + monitor_rect.width - gtk_widget_get_allocated_width(widget) + x + 1;
 	if (y < 0)	// Negative Y position is counted from bottom border
-		y = gdk_screen_get_height(scr) - gtk_widget_get_allocated_height(widget) + y + 1;
+		y = monitor_rect.y + monitor_rect.height - gtk_widget_get_allocated_height(widget) + y + 1;
 #ifdef _WIN32
 	GdkWindow* gdk_window = gtk_widget_get_window(GTK_WIDGET(widget));
 	HWND hwnd = gdk_win32_window_get_handle(gdk_window);
@@ -218,13 +212,12 @@ void osd_window_setup(OSDWindow* osdwin, const char* wmclass, const OSDWindowCal
 			// formatter_class=argparse.RawDescriptionHelpFormatter,
 			// epilog="")
 	// TODO: add_arguments()
-	OSDWindowPrivate* priv = G_TYPE_INSTANCE_GET_PRIVATE(osdwin, OSD_WINDOW_TYPE, OSDWindowPrivate);
+	OSDWindowPrivate* priv = osd_window_get_instance_private(osdwin);
 	priv->callbacks = callbacks;
 	// self.mainloop = None
 	// priv->controller = None
 	
 	gtk_window_set_title(GTK_WINDOW(osdwin), wmclass);
-	gtk_window_set_wmclass(GTK_WINDOW(osdwin), wmclass, wmclass);
 	gtk_widget_set_name(GTK_WIDGET(osdwin), wmclass);
 	gtk_window_set_decorated(GTK_WINDOW(osdwin), FALSE);
 	gtk_window_stick(GTK_WINDOW(osdwin));
@@ -240,22 +233,13 @@ void osd_window_exit(OSDWindow* osdwin, int code) {
 
 void osd_window_get_active_screen_geometry(OSDWindow* osdwin, GdkRectangle* geometry) {
 	GdkWindow* gdkwin = gtk_widget_get_window(GTK_WIDGET(osdwin));
-	GdkScreen* scr = gdk_window_get_screen(gdkwin);
-	GdkWindow* awin = gdk_screen_get_active_window(scr);
-	
-	GdkMonitor* m;
-	if (awin == NULL) {
-		// Failed to find active window, grab my own monitor instead
-		m = gdk_display_get_monitor_at_window(gdk_window_get_display(gdkwin), gdkwin);
-	} else {
-		m = gdk_display_get_monitor_at_window(gdk_window_get_display(awin), awin);
-		g_object_unref(awin);
-	}
+	GdkDisplay* display = gdk_window_get_display(gdkwin);
+	GdkMonitor* m = gdk_display_get_monitor_at_window(display, gdkwin);
 	gdk_monitor_get_geometry(m, geometry);
 }
 
 void osd_window_compute_position(OSDWindow* osdwin, int* x, int* y) {
-	OSDWindowPrivate* priv = G_TYPE_INSTANCE_GET_PRIVATE(osdwin, OSD_WINDOW_TYPE, OSDWindowPrivate);
+	OSDWindowPrivate* priv = osd_window_get_instance_private(osdwin);
 	GdkWindow* gdkwin = gtk_widget_get_window(GTK_WIDGET(osdwin));
 	GdkRectangle geometry;
 	
