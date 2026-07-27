@@ -113,8 +113,8 @@ static Source string_to_source(const char* source) {
 		if (0 == strcmp("RB", source)) return SRC_RB;
 		if (0 == strcmp("RGRIP", source)) return SRC_RGRIP;
 		if (0 == strcmp("RGRIP2", source)) return SRC_RGRIP2;
-		if (0 == strcmp("RPAD", source)) return SRC_RPADPRESS;
-		if (0 == strcmp("RPADPRESS", source)) return SRC_RPAD;
+		if (0 == strcmp("RPAD", source)) return SRC_RPAD;
+		if (0 == strcmp("RPADPRESS", source)) return SRC_RPADPRESS;
 		if (0 == strcmp("RTRIGGER", source)) return SRC_RTRIGGER;
 		if (0 == strcmp("RPADTOUCH", source)) return SRC_RPADTOUCH;
 		if (0 == strcmp("RSTICK", source)) return SRC_RSTICK;
