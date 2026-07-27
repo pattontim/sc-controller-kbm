@@ -177,37 +177,24 @@ void input_interrupt_cb(Daemon* d, InputDevice* dev, uint8_t endpoint, const uin
 }
 
 static void turnoff(Controller* c) {
-	// try to restart the process on controller turnoff
 	DDEBUG("TURNING OFF CONTROLLER %s", c->get_description(c));
-	/*
 	SCController* sc = container_of(c, SCController, controller);
-	uint8_t data[65] = { PT_BT_PREFIX, PT_LIZARD_BUTTONS, 0x01 };
-	uint8_t* response;
-	if ((response = sc->dev->hid_request(sc->dev, sc->idx, data, -65)) == NULL) {
-		LERROR("Failed to activate lizard mode 1");
+	if (sc->dev == NULL) {
+		LERROR("Cannot turn off: device already closed");
+		return;  
 	}
-	debug_packet((char *)response, 128);
-	data[1] = PT_LIZARD_MOUSE;
-	if ((response = sc->dev->hid_request(sc->dev, sc->idx, data, -65)) == NULL) {
-		LERROR("Failed to activate lizard mode 1");
-	}
-	debug_packet((char *)response, 128);*/
-	/*
-	//uint8_t data[128] = { PT_BT_PREFIX, PT_OFF, 0x04, 0x6f, 0x66, 0x66, 0x21 };
-	sc->dev->close(sc->dev);
-	uint8_t* response;
-	uint8_t* data; 
-	data = calloc(128, sizeof(uint8_t));
-		data[0] = PT_BT_PREFIX;
-		data[1] = PT_OFF;
-		data[2] = 0x04;
-	    data[3] = 0x6f;
-		data[4] = 0x66;
-		data[5] = 0x66; 
-		data[6] = 0x21;
-	//if ((response = sc->dev->hid_request(sc->dev, sc->idx, data, -(65))) == NULL)
-	//	LERROR("Failed to turn off controller");
-	//debug_packet((char *)data, 128);*/
+
+	// { 0xC0, 0x9F, 0x04, 'o', 'f', 'f', '!' }  == BT prefix + OFF + "off!"
+	uint8_t data[PACKET_SIZE] = {
+		PT_BT_PREFIX, PT_OFF, PL_OFF, 0x6f, 0x66, 0x66, 0x21
+	};
+  
+#ifdef _WIN32
+	if (sc->dev->hid_request(sc->dev, sc->idx, data, -(PACKET_SIZE + 1)) == NULL)
+#else
+	if (sc->dev->hid_request(sc->dev, sc->idx, data, -PACKET_SIZE) == NULL)
+#endif
+		LERROR("Failed to turn off controller");
 }
 
 static bool hotplug_cb(Daemon* daemon, const InputDeviceData* idata) {

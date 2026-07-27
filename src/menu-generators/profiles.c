@@ -30,6 +30,18 @@ void generate(GeneratorContext* ctx) {
 	paths[0] = scc_get_default_profiles_path();
 	paths[1] = scc_get_profiles_path();
 	
+
+	// FIXME: it is not easy to change the config as a user since the config is loaded from the flatpak dir
+	// 100965 openat(AT_FDCWD, "/home/deck/.var/app/com.github.kozec.scc-daemon/config/scc/config.c.json", O_RDONLY) = 10
+	// 100965 openat(AT_FDCWD, "/app/share/scc/osd_styles/Reloaded.gtkstyle.css", O_RDONLY) = 18
+	// 100965 openat(AT_FDCWD, "/dev/uinput", O_WRONLY|O_NONBLOCK) = 18
+	// 100965 access("/home/deck/.var/app/com.github.kozec.scc-daemon/config/scc/profiles/.scc-osd.keyboard.sccprofile", F_OK) = -1 ENOENT (No such file or directory)
+	// 100965 access("/app/share/scc/default_profiles/.scc-osd.keyboard.sccprofile", F_OK) = 0
+	// 100965 access("/home/deck/.var/app/com.github.kozec.scc-daemon/config/scc/profiles/.scc-osd.keyboard.sccprofile", F_OK) = -1 ENOENT (No such file or directory)
+	// 100965 access("/app/share/scc/default_profiles/.scc-osd.keyboard.sccprofile", F_OK) = 0
+	// 100965 openat(AT_FDCWD, "/app/share/scc/default_profiles/.scc-osd.keyboard.sccprofile", O_RDONLY) = 38
+	// 100965 openat(AT_FDCWD, "/app/share/scc/keyboard.json", O_RDONLY) = 38
+
 	// Grab profiles
 	// TODO: This should be function somewhere in tools
 	for(int i=0; i<2; i++) {
