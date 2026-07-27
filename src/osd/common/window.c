@@ -109,6 +109,19 @@ static void get_safe_window_position(GdkRectangle *monitor_rect, GdkRectangle *w
     }
 }
 
+#ifndef _WIN32  
+static gboolean on_map_apply_input_shape(GtkWidget* widget, GdkEvent* e, gpointer u) {  
+	GdkWindow* gdk_window = gtk_widget_get_window(widget);  
+	if (gdk_window == NULL) return FALSE;  
+	Display* dpy = gdk_x11_get_default_xdisplay();  
+	XID xid = GDK_WINDOW_XID(gdk_window);  
+	XserverRegion reg = XFixesCreateRegion(dpy, NULL, 0);  
+	XFixesSetWindowShapeRegion(dpy, xid, ShapeInput, 0, 0, reg);  // only ShapeInput  
+	XFixesDestroyRegion(dpy, reg);  
+	return FALSE;  
+}  
+#endif
+
 static void osd_window_show(GtkWidget* widget) {
 	GdkScreen* scr = gdk_screen_get_default();
 
@@ -166,20 +179,22 @@ static void osd_window_show(GtkWidget* widget) {
 	SetWindowLong(hwnd, GWL_EXSTYLE, style | WS_EX_TRANSPARENT | WS_EX_LAYERED | WS_EX_NOACTIVATE);
 	SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
 	gtk_widget_set_opacity(widget, 0.60);
-#else
-	// gtk_window_show(widget);
-	/*
-	Display* dpy = gdk_x11_get_default_xdisplay();
-	ASSERT(dpy != NULL);
-	GdkWindow* gdk_window = gtk_widget_get_window(GTK_WIDGET(w));
-	ASSERT(gdk_window != NULL);
-	XID xid = GDK_WINDOW_XID(gdk_window);
-	ASSERT(xid != 0);
-	XserverRegion reg = XFixesCreateRegion(dpy, NULL, 0);
-	XFixesSetWindowShapeRegion(dpy, xid, ShapeBounding, 0, 0, (XserverRegion)0);
-	XFixesSetWindowShapeRegion(dpy, xid, ShapeInput, 0, 0, reg);
-	XFixesDestroyRegion(dpy, reg);
-	*/
+#else  
+	GdkWindow* gdk_window = gtk_widget_get_window(widget);  
+	ASSERT(gdk_window != NULL);  
+	Display* dpy = gdk_x11_get_default_xdisplay();  
+	ASSERT(dpy != NULL);  
+	XID xid = GDK_WINDOW_XID(gdk_window);  
+	ASSERT(xid != 0);  
+  
+	// Empty input region => the whole window is transparent to pointer  
+	// input, so clicks fall through to the app underneath. Leave the  
+	// bounding shape untouched so the window stays visible.  
+	XserverRegion reg = XFixesCreateRegion(dpy, NULL, 0);  
+	XFixesSetWindowShapeRegion(dpy, xid, ShapeInput, 0, 0, reg);  
+	XFixesDestroyRegion(dpy, reg);  
+  
+	gtk_widget_set_opacity(widget, 0.60);  // optional, mirror Windows  
 #endif
 	GdkRectangle osd_rect = {x, y, 0, 0};
 	osd_rect.width = gtk_widget_get_allocated_width(widget) * 0.3;
@@ -225,6 +240,11 @@ void osd_window_setup(OSDWindow* osdwin, const char* wmclass, const OSDWindowCal
 	gtk_window_set_skip_pager_hint(GTK_WINDOW(osdwin), TRUE);
 	gtk_window_set_keep_above(GTK_WINDOW(osdwin), TRUE);
 	gtk_window_set_type_hint(GTK_WINDOW(osdwin), GDK_WINDOW_TYPE_HINT_DOCK);
+
+	#ifndef _WIN32  
+	g_signal_connect(G_OBJECT(osdwin), "map-event",  
+	                 G_CALLBACK(on_map_apply_input_shape), NULL);  
+	#endif
 }
 
 void osd_window_exit(OSDWindow* osdwin, int code) {

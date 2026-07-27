@@ -465,7 +465,7 @@ const char* sccd_observe_actions(Client* c, StringList sources) {
 			Source src = string_to_source(source);
 			lp->actions[src].action.whole = &observe_action_whole;
 			lp->actions[src].action.trigger = &observe_action_trigger;
-			// TODO implement observe_action_button_press completely
+			// FIXME: implement observe_action_button_press completely
 			lp->actions[src].action.button_press = &lock_action_button_press;
 			lp->actions[src].action.button_release = &lock_action_button_release;
 		}
