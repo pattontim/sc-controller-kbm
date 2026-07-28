@@ -1,34 +1,36 @@
-SC Controller
+SC Controller (C fork)
 =============
 
 User-mode driver and mapper for Steam Controller, DS4 and similar controllers.
-
-[![screenshot1](docs/screenshot1-tn.png?raw=true)](docs/screenshot1.png?raw=true)
-[![screenshot2](docs/screenshot2-tn.png?raw=true)](docs/screenshot2.png?raw=true)
-[![screenshot3](docs/screenshot3-tn.png?raw=true)](docs/screenshot3.png?raw=true)
-[![screenshot3](docs/screenshot4-tn.png?raw=true)](docs/screenshot4.png?raw=true)
 
 -----------
 
 ## WIP Windows/BSD/Linux/android port in c
 
-Hi there. What you are browsing is WIP branch in which I'm removing functionality to make a simpler binary capable of simple kbm input
+I am not actively supporting Windows, support may break in the immediate future.
 
-It should be somehow usable, but there is no GUI and only very basic OSD menu right now.
-See this [wiki page](https://github.com/kozec/sc-controller/wiki/Running-SC-Controller-on-Windows) for how to run it.
+This is a WIP branch of the C fork of sc-controller in which I'm removing the GUI functionality to make a simpler binary capable of simple kbm input
+
+It should be somewhat usable with effort, but there is no GUI and is only the daemon plus keyboard right now.
 
 -----------
 
-#### Like what I'm doing?
+#### Like what we're doing?
 
-[![Help me become filthy rich on Liberapay](https://img.shields.io/badge/Help%20me%20become%20filthy%20rich%20on-Liberapay-yellow.svg)](https://liberapay.com/kozec) <sup>or</sup> [![donate anything with PayPal](https://img.shields.io/badge/donate_anything_with-Paypal-blue.svg)](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=77DQD3L9K8RPU&lc=SK&item_name=kozec&item_number=scc&currency_code=EUR&bn=PP%2dDonationsBF%3abtn_donate_LG%2egif%3aNonHosted)
+[![Help support the original developer, Kozec, on Liberapay](https://img.shields.io/badge/Help%20me%20become%20filthy%20rich%20on-Liberapay-yellow.svg)](https://liberapay.com/kozec) <sup>or</sup> [![donate anything with PayPal](https://img.shields.io/badge/donate_anything_with-Paypal-blue.svg)](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=77DQD3L9K8RPU&lc=SK&item_name=kozec&item_number=scc&currency_code=EUR&bn=PP%2dDonationsBF%3abtn_donate_LG%2egif%3aNonHosted)
+
+#### The coffee pledge
+
+This is a project I started in early 2022 as I needed better performance for keyboard mouse inputs with my steam controller. Updates are primarily supported entirely by myself. If you get some use out of it feel free to support the development of the app or make some suggestions to steer development! 
+
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/A0A2N1AXM)
 
 
 #### Building
 
 Navigate to directory with sources and use meson to compile:
 
-###### on Linux
+###### on Linux (TODO: to be updated)
 ```
 $ meson build
 $ ninja -C build
@@ -45,11 +47,17 @@ $ meson build
 $ ninja -C build scc-daemon     # start without gui to check why it doesn't work
 
 ```
-To run the code and detect the SD you must copy all the the driver files produced when running make-win32-release.exe to a new folder in the root called drivers.
+To run the code and detect the steam deck you must copy all the the driver files produced when running make-win32-release.exe to a new folder in the root called drivers.
 
 ```
 $ ninja -C build sc-controller  # start GUI
 ```
 
 This no longer works because the GUI isn't supported.
+
+###### Flatpak (TODO: to be updated with flatpak commands)
+
+The flatpak is defined in com.github.kozec.scc-daemon.yml and targets the latest stable freedesktop SDK
+
+
 
