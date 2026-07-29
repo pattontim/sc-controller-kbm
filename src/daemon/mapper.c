@@ -221,7 +221,7 @@ static void register_keystate_repeat(Mapper* _m, Keycode b) {
 static void key_press(Mapper* _m, Keycode b, bool release_press) {
 	SCCDMapper* m = container_of(_m, SCCDMapper, mapper);
 	VirtualDevice* d = device_for_button(m, b);
-	DDEBUG("Key press: %d", b);
+	DDEBUG("Key press: %d (state before=%d, release_press=%d)", b, m->keys[b], release_press);  // CHANGED  
 	if (m->keys[b] == 0) {
 		scc_virtual_device_key_press(d, b);
 #ifdef _WIN32
@@ -243,12 +243,20 @@ static void key_press(Mapper* _m, Keycode b, bool release_press) {
 static void key_release(Mapper* _m, Keycode b) {
 	SCCDMapper* m = container_of(_m, SCCDMapper, mapper);
 	VirtualDevice* d = device_for_button(m, b);
-	if (m->keys[b] > 1) {
-		m->keys[b] --;
-	} else if (m->keys[b] == 1) {
+	DDEBUG("Key release: %d (state before=%d)", b, m->keys[b]);  // ADDED  
+	// FIXME: spurious key holds even when released when kb is open
+	// workaround: set to 0 on release
+	// if (m->keys[b] > 1) {
+	// 	m->keys[b] --;
+	// } else if (m->keys[b] == 1) {
+	// 	scc_virtual_device_key_release(d, b);
+	// 	m->keys[b] --;
+	// }
+	if (m->keys[b] > 0 || m->keys[b] < 0) {
 		scc_virtual_device_key_release(d, b);
-		m->keys[b] --;
-	}
+		m->keys[b] = 0;
+	}                 // was: > 1 / == 1 split  
+
 }
 
 static bool is_touched(Mapper* _m, PadStickTrigger pad) {

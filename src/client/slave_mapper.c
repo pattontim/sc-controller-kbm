@@ -130,6 +130,7 @@ inline static VirtualDevice* device_for_button(struct SlaveMapper* m, Keycode b)
 static void key_press(Mapper* _m, Keycode b, bool release_press) {
 	struct SlaveMapper* m = container_of(_m, struct SlaveMapper, mapper);
 	VirtualDevice* d = device_for_button(m, b);
+	DDEBUG("Slave key_press: %d (state=%d, dev=%p, release_press=%d)", b, m->keys[b], (void*)d, release_press);
 	if (d == NULL) {
 		// Special case for gamepad. Since creating gamepads on the fly would
 		// basically break every game in existence, gamepad events are sent to
@@ -159,6 +160,7 @@ static void key_press(Mapper* _m, Keycode b, bool release_press) {
 static void key_release(Mapper* _m, Keycode b) {
 	struct SlaveMapper* m = container_of(_m, struct SlaveMapper, mapper);
 	VirtualDevice* d = device_for_button(m, b);
+	DDEBUG("Slave key_release: %d (state=%d, dev=%p)", b, m->keys[b], (void*)d);
 	if (d == NULL) {
 		// See above
 		if (m->keys[b] > 0) {
@@ -166,12 +168,17 @@ static void key_release(Mapper* _m, Keycode b) {
 			m->keys[b] = 0;
 		}
 	} else {
-		if (m->keys[b] > 1) {
-			m->keys[b] --;
-		} else if (m->keys[b] == 1) {
-			scc_virtual_device_key_release(d, b);
-			m->keys[b] --;
-		}
+		// if (m->keys[b] > 1) {
+		// 	m->keys[b] --;
+		// } else if (m->keys[b] == 1) {
+		// 	scc_virtual_device_key_release(d, b);
+		// 	m->keys[b] --;
+		// }
+		// FIXME: overzealous reset, no more many-to-one mappings due to activation bug
+		if (m->keys[b] > 0 || m->keys[b] < 0) {             // was: > 1 / == 1 split  
+			scc_virtual_device_key_release(d, b);  
+			m->keys[b] = 0;               // overzealous reset  
+		}  
 	}
 }
 
@@ -205,12 +212,20 @@ static bool was_pressed(Mapper* _m, SCButton button) {
 
 static void release_virtual_buttons(Mapper* _m) {
 	struct SlaveMapper* m = container_of(_m, struct SlaveMapper, mapper);
-	for (int i = 0; i < BTN_DIGI; i ++) {
-		if (m->keys[i] > 0) {
-			send_button(_m, 0, i, 0);
-			m->keys[i] = 0;
-		}
-	}
+	
+	for (int i = 0; i < BTN_DIGI; i ++) {  
+		if (m->keys[i] > 0 || m->keys[i] < 0) {  
+			VirtualDevice* d = device_for_button(m, i);   // route by device  
+			if (d == NULL) {  
+				// gamepad key -> daemon handles it  
+				send_button(_m, 0, i, 0);  
+			} else {  
+				// keyboard / mouse key -> release on the real device  
+				scc_virtual_device_key_release(d, i);  
+			}  
+			m->keys[i] = 0;  
+		}  
+	}  
 }
 
 static void set_profile(Mapper* _m, Profile* p, bool cancel_effects) {
