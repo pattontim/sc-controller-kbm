@@ -11,7 +11,7 @@
 
 /** MAX_DESC_LEN has to fit "<RemotePad at 255.255.255.255>" */
 #define MAX_DESC_LEN	32
-#define MAX_ID_LEN		24
+#define MAX_ID_LEN		28
 
 struct remote_joypad_message {
 	int port;

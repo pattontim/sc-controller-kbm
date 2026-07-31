@@ -8,7 +8,7 @@
 
 /** MAX_DESC_LEN has to fit "<FakeGamepad #99>" */
 #define MAX_DESC_LEN	32
-#define MAX_ID_LEN		24
+#define MAX_ID_LEN		28
 
 typedef struct FakeGamepad {
 	Controller				controller;

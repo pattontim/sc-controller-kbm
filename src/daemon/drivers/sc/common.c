@@ -262,6 +262,13 @@ static inline void debug_packet(char* buffer, size_t size) {
 	DDEBUG("\n");
 }
 
+bool read_serial_triton(SCController* sc) {
+	// for now its spoofed as 26-26-26-26-26-26
+	snprintf(sc->serial, MAX_SERIAL_LEN, "%d", 41945290647078);	
+	snprintf(sc->id, MAX_ID_LEN, "sc26%s", sc->serial);
+	return true;
+}
+
 bool read_serial(SCController* sc) {
 	DDEBUG("Reading serial number");
 	Config* c = config_load();
@@ -357,6 +364,25 @@ bool lizard_mode(SCController* sc) {
 	data[0] = PT_LIZARD_MOUSE;
 	if (sc->dev->hid_request(sc->dev, sc->idx, data, -64) == NULL) {
 		LERROR("Failed to activate lizard mode");
+		return false;
+	}
+	return true;
+}
+
+bool disable_lizard_triton(SCController* sc) {
+	/* Triton (SC2 BLE 0x1303) lizard-off.
+	   64-byte valve feature report, opcode 0x87 (SET_SETTINGS_VALUES),
+	   len 0x03, setting 0x09 (LIZARD_MODE), value 0x0000 (OFF).
+	   No 0xC0 BT prefix. The leading report-ID byte handling is decided in
+	   sccd_input_hidapi_hid_request (tries 0x01 then 0x00). */
+	uint8_t data[BUFFER_SIZE] = { 0 };
+	data[0] = 0x87;  /* PT_CONFIGURE / ID_SET_SETTINGS_VALUES */
+	data[1] = 0x03;  /* length = 1 * sizeof(ControllerSetting) */
+	data[2] = 0x09;  /* SETTING_LIZARD_MODE */
+	data[3] = 0x00;  /* LIZARD_MODE_OFF lo */
+	data[4] = 0x00;  /* LIZARD_MODE_OFF hi */
+	if (sc->dev->hid_request(sc->dev, sc->idx, data, -64) == NULL) {
+		LERROR("TRITON: disable_lizard_triton hid_request failed");
 		return false;
 	}
 	return true;
