@@ -22,7 +22,6 @@
 #define CHUNK_LENGTH		64
 #define VENDOR_ID			0x28de
 #define PRODUCT_ID			0x1106
-#define PRODUCT_ID_TRITON	0x1303
 #define PACKET_SIZE 		20
 #define LONG_PACKET 		0x80
 #define BT_BUTTONS_BITS 	23
@@ -220,42 +219,25 @@ static bool hotplug_cb(Daemon* daemon, const InputDeviceData* idata) {
 			goto hotplug_cb_fail;
 		}
 	}
-	/* Triton (SC2 BLE 0x1303) uses a 64-byte valve feature report on report
-	   ID 0x01, NOT the v1 0xC0-prefixed 20-byte shape. Skip the v1
-	   read_serial/clear_mappings/configure sequence and send lizard-off only. */
-	bool is_triton = (strstr(idata->path, ":1303") != NULL);
-	if (is_triton) {
-		if(!read_serial_triton(sc)) {
-			LERROR("Failed to read serial number for TRITON controller");
-			goto hotplug_cb_failed_to_configure;
-		}
-
-		DEBUG("TRITON (0x1303) detected on BLE, sending lizard-off");
-		if (!disable_lizard_triton(sc)) {
-			LERROR("TRITON lizard-off failed (see report-id attempts above)");
-			goto hotplug_cb_failed_to_configure;
-		}
-	} else {
-		//TODO fix serial grabbing
-		/* For Bluetooth devices, serial reading may fail due to HID communication issues.
-		   Try to read serial */
-		if (!read_serial(sc)) {
-			LERROR("Failed to read serial number for Bluetooth controller");
-			goto hotplug_cb_failed_to_configure;
-			// WARN("Failed to read serial number for Bluetooth controller, using default");
-			/* Generate a synthetic serial based on vendor:product */
-			// bad idea
-			//snprintf(sc->serial, sizeof(sc->serial), "BT%04x%04x", VENDOR_ID, PRODUCT_ID);
-		}
-		// only needed on windows, do anyways on linux
-		if (!clear_mappings(sc)) {
-			LERROR("Failed to clear mappings on Bluetooth controller, continuing anyway");
-			goto hotplug_cb_failed_to_configure;
-		}
-		if (!configure(sc)) {
-			LERROR("Failed to configure Bluetooth controller via feature reports");
-			goto hotplug_cb_failed_to_configure;
-		}
+	//TODO fix serial grabbing
+	/* For Bluetooth devices, serial reading may fail due to HID communication issues.
+	   Try to read serial */
+	if (!read_serial(sc)) {
+		LERROR("Failed to read serial number for Bluetooth controller");
+		goto hotplug_cb_failed_to_configure;
+		// WARN("Failed to read serial number for Bluetooth controller, using default");
+		/* Generate a synthetic serial based on vendor:product */
+		// bad idea
+		//snprintf(sc->serial, sizeof(sc->serial), "BT%04x%04x", VENDOR_ID, PRODUCT_ID);
+	}
+	// only needed on windows, do anyways on linux
+	if (!clear_mappings(sc)) {
+		LERROR("Failed to clear mappings on Bluetooth controller, continuing anyway");
+		goto hotplug_cb_failed_to_configure;
+	}
+	if (!configure(sc)) {
+		LERROR("Failed to configure Bluetooth controller via feature reports");
+		goto hotplug_cb_failed_to_configure;
 	}
 	if (!dev->interupt_read_loop(dev, ENDPOINT, PACKET_SIZE, &input_interrupt_cb, sc)) {
 		LERROR("Failed to setup interrupt read loop");
@@ -284,7 +266,6 @@ static bool driver_start(Driver* drv, Daemon* daemon) {
 	HotplugFilter filter_vendor  = { .type=SCCD_HOTPLUG_FILTER_VENDOR,	.vendor=VENDOR_ID };
 	HotplugFilter filter_product = { .type=SCCD_HOTPLUG_FILTER_PRODUCT,	.product=PRODUCT_ID };
 	HotplugFilter filter_idx	 = { .type=SCCD_HOTPLUG_FILTER_IDX,		.idx=CONTROLIDX };
-	HotplugFilter filter_product_triton = { .type=SCCD_HOTPLUG_FILTER_PRODUCT, .product=PRODUCT_ID_TRITON };
 #if defined(_WIN32)
 	#define FILTERS &filter_vendor, &filter_product, &filter_idx
 	if (!daemon->hotplug_cb_add(HIDAPI, hotplug_cb, FILTERS, NULL)) {
@@ -303,24 +284,15 @@ static bool driver_start(Driver* drv, Daemon* daemon) {
 	   - HIDAPI if use-hidapi is enabled (preferred for better compatibility)
 	   - BT if use-hidapi is disabled */
 	#define FILTERS &filter_vendor, &filter_product
-	#define FILTERS_TRITON &filter_vendor, &filter_product_triton
 	if (daemon->get_hidapi_enabled()) {
 		if (!daemon->hotplug_cb_add(HIDAPI, hotplug_cb, FILTERS, NULL)) {
 			LERROR("Failed to register hotplug callback for HIDAPI");
-			return false;
-		}
-		if (!daemon->hotplug_cb_add(HIDAPI, hotplug_cb, FILTERS_TRITON, NULL)) {
-			LERROR("Failed to register hotplug callback for HIDAPI (Triton)");
 			return false;
 		}
 	}
 	/* Also always register for BT subsystem for Bluetooth devices that might not be detected via HIDAPI */
 	if (!daemon->hotplug_cb_add(BT, hotplug_cb, FILTERS, NULL)) {
 		LERROR("Failed to register hotplug callback for BT");
-		return false;
-	}
-	if (!daemon->hotplug_cb_add(BT, hotplug_cb, FILTERS_TRITON, NULL)) {
-		LERROR("Failed to register hotplug callback for BT (Triton)");
 		return false;
 	}
 #endif

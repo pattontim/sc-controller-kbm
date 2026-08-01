@@ -187,19 +187,12 @@ SCController* create_usb_controller(Daemon* daemon, InputDevice* dev, SCControll
 void handle_input(SCController* sc, SCInput* i);
 /** Returns false on failure */
 bool read_serial(SCController* sc);
-bool read_serial_triton(SCController* sc);
 /** Returns false on failure */
 bool clear_mappings(SCController* sc);
 /** This is effectively reverse of clear_mappings. Returns false on failure */
 bool lizard_mode(SCController* sc);
 /** Returns false on failure */
 bool configure(SCController* sc);
-/**
- * Triton (SC2 BLE 0x1303) lizard-off. Sends 0x87 SET_SETTINGS_VALUES with
- * SETTING_LIZARD_MODE=0 over the 64-byte valve feature report. Returns false
- * on failure.
- */
-bool disable_lizard_triton(SCController* sc);
 /**
  * Called to inform daemon & mapper about controller being disconnected.
  * Does not deallocate 'sc'.

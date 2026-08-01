@@ -33,7 +33,6 @@ typedef struct HidapiInputDevice {
 	InputDevice			dev;
 	hid_device*			hid;
 	int					idx;
-	bool				is_triton;  /* SC2 BLE 0x1303: 64-byte report-0x01 feature channel */
 	struct InputInterruptData {
 		sccd_input_read_cb		cb;
 		uint8_t*				buffer;
@@ -188,35 +187,6 @@ static uint8_t* sccd_input_hidapi_hid_request(InputDevice* _dev, int16_t idx, ui
 		return NULL;
 	}
 	
-	/* Triton (SC2 BLE 0x1303): 64-byte valve feature report on report ID 0x01.
-	   The leading report-ID byte over hidraw is UNKNOWN (SDL's GATT layer strips
-	   it entirely; hid_send_feature_report does not). Try 0x01 then 0x00 and log
-	   each attempt so the working one can be identified at runtime. */
-	if (idx == -1 && dev->is_triton) {
-		static const uint8_t triton_rids[] = { 0x01, 0x00 };
-		uint8_t triton_buf[65];
-		uint16_t copy_len = length < 64 ? length : 64;
-		for (int t = 0; t < 2; t++) {
-			triton_buf[0] = triton_rids[t];
-			memcpy(&triton_buf[1], data, copy_len);
-			if (copy_len < 64)
-				memset(&triton_buf[1 + copy_len], 0, 64 - copy_len);
-			printf("[TRITON] attempt report_id=0x%02X payload=%02X %02X %02X %02X %02X\n",
-			       triton_buf[0], data[0], data[1], data[2], data[3], data[4]);
-			err = hid_send_feature_report(dev->hid, triton_buf, 65);
-			if (err < 0) {
-				wcstombs((char*)buffer, hid_error(dev->hid), ACTUAL_BUFFER);
-				printf("[TRITON] report_id=0x%02X FAILED: %s\n", triton_buf[0], buffer);
-				continue;  /* try next report id */
-			}
-			printf("[TRITON] report_id=0x%02X OK (%d bytes sent)\n", triton_buf[0], err);
-			memcpy(out_buffer, &triton_buf[1], copy_len);
-			return out_buffer;  /* lizard-off needs no GET reply */
-		}
-		printf("[TRITON] both report-id attempts (0x01, 0x00) failed\n");
-		goto sccd_input_hid_request_fail;
-	}
-	
 	// Log the feature report being sent for debugging
 	// DDEBUG("HID FRequest: idx=%d, send_length=%d, buffer_type=%s, data[0..7]: %02X %02X %02X %02X %02X %02X %02X %02X",
 	// 	idx, feat_length, (idx == -1) ? "BT_20B" : "USB_FULL", 
@@ -310,16 +280,11 @@ InputDevice* sccd_input_hidapi_open(const char* syspath) {
 	/* Check if this is a Bluetooth URI (device_monitor_linux.c format) */
 	hid_device* hid = NULL;
 	int interface_number = -1;
-	bool is_triton = false;
 	if (strncmp(syspath, "bluetooth://", 12) == 0) {
 		/* Parse "bluetooth://XXXX:YYYY" format */
 		unsigned int vendor_id, product_id;
 		if (sscanf(syspath + 12, "%x:%x", &vendor_id, &product_id) == 2) {
 			DDEBUG("Opening Bluetooth device via HIDAPI enumerate: %04x:%04x", vendor_id, product_id);
-			if (vendor_id == 0x28de && product_id == 0x1303) {
-				is_triton = true;
-				DDEBUG("TRITON (SC2 BLE 0x1303) detected");
-			}
 			
 			/* Enumerate all HID devices and find matching vendor/product */
 			struct hid_device_info* lst = hid_enumerate((unsigned short)vendor_id, (unsigned short)product_id);
@@ -378,7 +343,6 @@ InputDevice* sccd_input_hidapi_open(const char* syspath) {
 	dev->dev.hid_write = sccd_input_hidapi_hid_write;
 	dev->idata.buffer = NULL;
 	dev->idx = -1;
-	dev->is_triton = is_triton;
 	// TODO: Idx in BSD / Linux?
 	
 	/* For Bluetooth devices opened via enumerate, use the interface number */
