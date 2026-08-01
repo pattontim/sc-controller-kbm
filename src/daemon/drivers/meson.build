@@ -23,6 +23,15 @@ shared_library('scc-drv-sc_by_bt',
 	]
 )
 
+shared_library('scc-drv-sc_by_bt_sc26',  
+	include_directories: [ include ],  
+	link_with: [ utils_lib, config_lib ],  
+	dependencies: deps,  
+	install: true,  
+	install_dir: drv_install_dir,  
+	sources: [ 'sc/common.c', 'sc/by_bt_sc26.c' ]  
+)
+
 shared_library('scc-drv-sc_by_cable',
 	include_directories: [ include ],
 	link_with: [ utils_lib, config_lib ],
@@ -126,6 +135,15 @@ if host_machine.system() == 'windows'
 			'sc/common.c',
 			'sc/by_bt.c',
 		]
+	)
+
+	shared_library('scc-drv-sc_by_bt_sc26',  
+		include_directories: [ include ],  
+		link_with: [ utils_lib, config_lib ],  
+		dependencies: deps,  
+		install: true,  
+		install_dir: drv_install_dir,  
+		sources: [ 'sc/common.c', 'sc/by_bt_sc26.c' ]  
 	)
 endif
 

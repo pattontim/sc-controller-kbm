@@ -27,6 +27,7 @@
 #define LONG_PACKET 		0x80
 #define BT_BUTTONS_BITS 	23
 #define TRITON_REPORT_SIZE	64  
+#define READ_BUFFER_SIZE	64 
 
 static controller_available_cb controller_available = NULL;
 
@@ -85,86 +86,93 @@ static inline void debug_packet(char* buffer, size_t size) {
 char tmp_buffer[256] = "";
 char ptr_buffer[256] = "";	
 
-// TODO: adast for SC2
-int bt_handle_input(SCController *sc, uint8_t* i){
-	if(sc->mapper != NULL){			
-			if (sc->long_packet) {
-				// Previous packet had long flag set and this is its 2nd part
-				memcpy(ptr_buffer + PACKET_SIZE, tmp_buffer + 1, PACKET_SIZE - 1);
-				sc->long_packet = 0;
-			} else {
-				// This is 1st part of long packet
-				memcpy(ptr_buffer, (void *)i, PACKET_SIZE);
-				sc->long_packet = *((uint8_t*)(ptr_buffer + 1)) == LONG_PACKET;
-				if (sc->long_packet) {
-					return 0;
-				}
-				// debug_packet(ptr->buffer, PACKET_SIZE);
-			}
-			// debug_packet(ptr_buffer, PACKET_SIZE);
-						
-			int rv = 0;
-			int bit;
-			uint16_t type = *((uint16_t*)(ptr_buffer + 2));
-			char* data = &ptr_buffer[4];
-			if ((type & PING) == PING) {
-				// PING packet does nothing
-				return 0;
-			}
-			if ((type & BUTTON) == BUTTON) {
-				rv = 1; 
-				uint32_t bt_buttons = *((uint32_t*)data);
-				uint32_t sc_buttons = 0;
-				//TODO cover remaining bits
-				for (bit=0; bit<BT_BUTTONS_BITS; bit++) {
-					if ((bt_buttons & 1) != 0)
-						sc_buttons |= BT_BUTTONS[bit];
-					bt_buttons >>= 1;
-				}
-				sc->input.buttons = (SCButton)sc_buttons;
-				data += 3;
-			}
-			if ((type & TRIGGERS) == TRIGGERS) {
-				rv = 1;
-				sc->input.ltrig = *(((uint8_t*)data) + 0);
-				sc->input.rtrig = *(((uint8_t*)data) + 1);
-				data += 2;
-			}
-			if ((type & STICK) == STICK) {
-				rv = 1; 
-				sc->input.stick_x = *(((int16_t*)data) + 0);
-				sc->input.stick_y = *(((int16_t*)data) + 1);
-				data += 4;
-			}
-			if ((type & LPAD) == LPAD) { 
-				rv = 1; 
-				sc->input.lpad_x = *(((int16_t*)data) + 0);
-				sc->input.lpad_y = *(((int16_t*)data) + 1);
-				data += 4;
-			}
-			if ((type & RPAD) == RPAD) {
-				rv = 1;
-				sc->input.rpad_x = *(((int16_t*)data) + 0);
-				sc->input.rpad_y = *(((int16_t*)data) + 1);
-				data += 4;
-			}
-			if ((type & GYRO) == GYRO) {
-				rv = 1; 
-				sc->input.gyro.gpitch = *(((int16_t*)data) + 0);
-				sc->input.gyro.groll = *(((int16_t*)data) + 1);
-				sc->input.gyro.gyaw = *(((int16_t*)data) + 2);
-				sc->input.gyro.q0 = *(((int16_t*)data) + 3);
-				sc->input.gyro.q1 = *(((int16_t*)data) + 4);
-				sc->input.gyro.q2 = *(((int16_t*)data) + 5);
-				sc->input.gyro.q3 = *(((int16_t*)data) + 6);
-				data += 14;
-			}
-			sc->input.buttons &= ~0b00000000000011110000000000000000;
-			//input eval same bitmap?
-			// FIXME: gyro inputs are disabled for now
-			//sc->mapper->input(sc->mapper, &sc->input);
-			return rv;
-		}
+// Triton BLE report body offsets (matches sc26re triton_state_report.h)  
+#define T_SEQUENCE        0  
+#define T_BUTTONS         1   // uint32 LE  
+#define T_TRIGGER_L       5   // int16 LE  
+#define T_TRIGGER_R       7  
+#define T_STICK_L_X       9  
+#define T_STICK_L_Y       11  
+#define T_STICK_R_X       13  
+#define T_STICK_R_Y       15  
+#define T_PAD_L_X         17  
+#define T_PAD_L_Y         19  
+#define T_PAD_L_PRESSURE  21  
+#define T_PAD_R_X         23  
+#define T_PAD_R_Y         25  
+#define T_PAD_R_PRESSURE  27  
+#define TB_DPAD_DOWN   0x00000400  // bit 10  
+#define TB_DPAD_RIGHT  0x00000800  // bit 11  
+#define TB_DPAD_LEFT   0x00001000  // bit 12  
+#define TB_DPAD_UP     0x00002000  // bit 13
+
+// IMU starts at 29 — ignored per request  
+  
+// Triton button bits -> SCButton (SCB_*)  
+static uint32_t map_triton_buttons(uint32_t b) {  
+    uint32_t out = 0;  
+    if (b & 0x00000001) out |= SCB_A;          // A  
+    if (b & 0x00000002) out |= SCB_B;          // B  
+    if (b & 0x00000004) out |= SCB_X;          // X  
+    if (b & 0x00000008) out |= SCB_Y;          // Y  
+    if (b & 0x00000040) out |= SCB_BACK;       // VIEW  
+    if (b & 0x00000080) out |= SCB_RGRIP;      // R4 paddle  
+    if (b & 0x00000200) out |= SCB_RB;         // R bumper  
+    // bits 10-13 = DPAD (down/right/left/up) -> ignored, like SC  
+    if (b & 0x00004000) out |= SCB_START;      // MENU  
+    if (b & 0x00008000) out |= SCB_STICKPRESS; // L3  
+    if (b & 0x00010000) out |= SCB_C;          // STEAM/special  
+    if (b & 0x00020000) out |= SCB_LGRIP;      // L4 paddle  
+    if (b & 0x00080000) out |= SCB_LB;         // L bumper  
+    if (b & 0x00200000) out |= SCB_RPADTOUCH;  // right pad touch  
+    if (b & 0x00400000) out |= SCB_RPAD;       // right pad click  
+    if (b & 0x00800000) out |= SCB_RT;         // right trigger click  
+    if (b & 0x02000000) out |= SCB_LPADTOUCH;  // left pad touch  
+    if (b & 0x04000000) out |= SCB_LPAD;       // left pad click  
+    if (b & 0x08000000) out |= SCB_LT;         // left trigger click  
+    return out;  
+}  
+  
+int bt_handle_input(SCController *sc, uint8_t *raw) {  
+    if (sc->mapper == NULL) return 0;  
+  
+    // hidraw/SDL path prepends the numbered-report ID byte; the sc26re  
+    // offset table is relative to the BLE body (byte 0 == seq_num), so skip 1.  
+    uint8_t *i = raw + 1;  
+  
+    uint32_t buttons = *(uint32_t*)(i + T_BUTTONS);  
+    sc->input.buttons = (SCButton)map_triton_buttons(buttons);  
+
+	sc->input.dpad_x = (buttons & TB_DPAD_LEFT) ? STICK_PAD_MIN  
+	: (buttons & TB_DPAD_RIGHT) ? STICK_PAD_MAX : 0;  
+	sc->input.dpad_y = (buttons & TB_DPAD_DOWN) ? STICK_PAD_MIN  
+	: (buttons & TB_DPAD_UP)   ? STICK_PAD_MAX : 0;
+  
+    sc->input.ltrig = (uint8_t)(*(int16_t*)(i + T_TRIGGER_L) >> 7);  
+    sc->input.rtrig = (uint8_t)(*(int16_t*)(i + T_TRIGGER_R) >> 7);  
+  
+    sc->input.stick_x  =  *(int16_t*)(i + T_STICK_L_X);  
+    sc->input.stick_y  = -*(int16_t*)(i + T_STICK_L_Y);  
+    sc->input.rstick_x =  *(int16_t*)(i + T_STICK_R_X);  
+    sc->input.rstick_y = -*(int16_t*)(i + T_STICK_R_Y);  
+  
+    sc->input.lpad_x = *(int16_t*)(i + T_PAD_L_X);  
+    sc->input.lpad_y = *(int16_t*)(i + T_PAD_L_Y);  
+    sc->input.rpad_x = *(int16_t*)(i + T_PAD_R_X);  
+    sc->input.rpad_y = *(int16_t*)(i + T_PAD_R_Y);  
+  
+    // --- TEMP decoded-field diagnostics ---  
+    static int dbg_d = 0;  
+    if ((dbg_d < 60) && (buttons != 0)) {  
+        printf("[TRITON dec] seq=%02x btn=0x%08x -> sc=0x%08x lt=%u rt=%u lx=%d ly=%d\n",  
+               i[T_SEQUENCE], buttons, (uint32_t)sc->input.buttons,  
+               sc->input.ltrig, sc->input.rtrig,  
+               sc->input.stick_x, sc->input.stick_y);  
+        dbg_d++;  
+    }  
+  
+    sc->mapper->input(sc->mapper, &sc->input);  
+    return 1;  
 }
 
 void input_interrupt_cb(Daemon* d, InputDevice* dev, uint8_t endpoint, const uint8_t* data, void* userdata) {
@@ -253,7 +261,7 @@ static bool hotplug_cb(Daemon* daemon, const InputDeviceData* idata) {
 		goto hotplug_cb_failed_to_configure;
 	}
 	
-	if (!dev->interupt_read_loop(dev, ENDPOINT, PACKET_SIZE, &input_interrupt_cb, sc)) {
+	if (!dev->interupt_read_loop(dev, ENDPOINT, READ_BUFFER_SIZE, &input_interrupt_cb, sc)) {
 		LERROR("Failed to setup interrupt read loop");
 		goto hotplug_cb_failed_to_configure;
 	}
