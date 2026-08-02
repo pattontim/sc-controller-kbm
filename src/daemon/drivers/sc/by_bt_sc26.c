@@ -284,6 +284,7 @@ static bool hotplug_cb(Daemon* daemon, const InputDeviceData* idata) {
 	}
 	DEBUG("New BLE Steam Controller Triton with serial %s connected", sc->serial);
 	sc->state = SS_READY;
+	sc->controller.get_type = &get_type;
 	if (!daemon->controller_add(&sc->controller)) {
 		// This shouldn't happen unless memory is running out
 		DEBUG("Failed to add Triton controller to daemon");
