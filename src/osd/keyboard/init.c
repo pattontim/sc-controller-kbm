@@ -74,8 +74,8 @@ static void osd_keyboard_on_connection_ready(SCCClient* c) {
 	}
 	
 	ControllerData * cd = sccc_get_controller_data(priv->client, priv->controller_id);
-	if(strcmp(cd->type, "deck") == 0){
-		DDEBUG("Deck detected");
+	if(strcmp(cd->type, "deck") == 0 || strcmp(cd->type, "sc26") == 0){
+		DDEBUG("Square pads detected");
 		priv->square = true;
 	} else {
 		DDEBUG("Controller detected");
@@ -91,64 +91,27 @@ static void osd_keyboard_on_connection_ready(SCCClient* c) {
 	bool observed;
 	if(strcmp(cd->type, "deck") == 0){
 		DDEBUG("Locking deck");
-		// TODO: handle the observe config flags
-		// TODO: add config flag "mouse follows keyboard"
-
-		// do not add buttons as observing them is not supported yet
-		observed = sccc_observe(c, handle, "LTRIGGER", "RTRIGGER"
-			// , "LPAD"
-			, "RPAD");
-		locked = sccc_lock(c, handle,
-					"STICK", "A", "B", "X", "Y", "C", 
-					"RGRIP", "RGRIP2", "LGRIP", "LGRIP2", "DOTS", "START", "BACK", "LB", "RB"
-					// , "LTRIGGER"
-					// , "RTRIGGER"
-					, "LPAD"
-					// , "RPAD" 
-					, "LPADPRESS"
-					, "RPADPRESS"
-					);
-
-	// 	// char ** sources_array = list_consume(sources);
-	// 	locked = sccc_observe(c, handle, sources);
-	// 	// free(sources_array);
+	} else if(strcmp(cd->type, "sc26") == 0){
+		DDEBUG("Locking sc26");
 	} else {
-		// FIXME: handle observe arguments 
-		// if (priv->options->observe != NULL) {
-			// Tokens* tokens = tokenize(priv->options->observe);
-			// tokens_auto_skip_whitespace(tokens);
-
-			// StringList sources = list_new(char, 0);
-			// list_set_dealloc_cb(sources, &free);
-			// // TODO 
-			// // if (sources == NULL)
-			// // 	return sccd_on_client_command_oom(client);
-			// while (iter_has_next(tokens)) {
-			// 	char* source = strbuilder_cpy(iter_next(tokens));
-			// 	bool added = (source != NULL) ? list_add(sources, source) : false;
-			// 	if (!added) {
-			// 		free(source);
-			// 		list_free(sources);
-			// 		// TODO
-			// 		// return sccd_on_client_command_oom(client);
-			// 	}
-			// }
-		observed = sccc_observe(c, handle, "LTRIGGER", "RTRIGGER"
-			// , "LPAD",
-			, "RPAD");
-		// why is LGRIP/RGRIP (2) on non deck?
-		locked = sccc_lock(c, handle,
-					"STICK", "A", "B", "X", "Y", "C", 
-					"RGRIP", "RGRIP2", "LGRIP", "LGRIP2", "DOTS", "START", "BACK" 
-					, "LB", "RB"
-					// , "LTRIGGER"
-					// , "RTRIGGER"
-					, "LPAD"
-					// , "RPAD" 
-					, "LPADPRESS"
-					, "RPADPRESS"
-					);
+		DDEBUG("Locking steam or other controller");
 	}
+
+	// do not add buttons as observing them is not supported yet
+	observed = sccc_observe(c, handle, "LTRIGGER", "RTRIGGER"
+		// , "LPAD"
+		, "RPAD");
+	locked = sccc_lock(c, handle,
+		"STICK", "A", "B", "X", "Y", "C", 
+		"RGRIP", "RGRIP2", "LGRIP", "LGRIP2", "DOTS", "START", "BACK"
+		, "LB", "RB"
+		// , "LTRIGGER"
+		// , "RTRIGGER"
+		, "LPAD"
+		// , "RPAD" 
+		, "LPADPRESS"
+		, "RPADPRESS"
+	);
 
 	if(!observed){
 		WARN("Failed to observe controller");

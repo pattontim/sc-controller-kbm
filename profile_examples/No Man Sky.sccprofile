@@ -23,7 +23,7 @@
             "action": "button(Keys.KEY_LEFTSHIFT)", 
             "name": "Sprint"
         }, 
-        "LPAD": {
+        "LPADPRESS": {
             "action": "button(Keys.KEY_M)", 
             "name": "Map"
         }, 
@@ -35,7 +35,7 @@
             "action": "button(Keys.KEY_Q)", 
             "name": "Swim Down"
         }, 
-        "RPAD": {
+        "RPADPRESS": {
             "action": "button(Keys.KEY_T)", 
             "name": "Torch"
         }, 

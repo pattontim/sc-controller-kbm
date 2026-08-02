@@ -26,3 +26,6 @@ sc-controller-*-release.zip
 scc/
 _temp
 .flatpak-builder/
+.idea
+*.code-workspace
+.vscode

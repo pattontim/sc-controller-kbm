@@ -28,6 +28,7 @@
 #define BT_BUTTONS_BITS 	23
 #define TRITON_REPORT_SIZE	64  
 #define READ_BUFFER_SIZE	64 
+#define UNLIZARD_INTERVAL	250 // sc26re says 3000ms, sc26 has a 250Hz poll, so 4ms. But wraps at 0xff.
 
 static controller_available_cb controller_available = NULL;
 
@@ -40,6 +41,10 @@ enum BtInPacketType {
 	GYRO     = 0x1800,
 	PING     = 0x5000,
 };
+
+static const char* get_type(Controller* c) {
+	return "sc26";
+}
 
 // bool read_serial_triton(SCController* sc);
 
@@ -144,6 +149,11 @@ int bt_handle_input(SCController *sc, uint8_t *raw) {
     if (report_id != 0x45 && report_id != 0x42) {
         return 0;
     }
+	uint8_t seq_num = raw[1];  // for debug only, not used in parsing
+	if(seq_num == 0xFF){
+		// issue unlizard command every 255 packets
+		disable_lizard_triton(sc);
+	}
   
     // offset table is relative to the BLE body (byte 0 == seq_num).
     uint8_t *i = raw + 1;  

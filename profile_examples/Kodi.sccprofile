@@ -61,7 +61,7 @@
                 }
             }
         }, 
-        "LPAD": {
+        "LPADPRESS": {
             "action": "button(Keys.KEY_M)"
         }, 
         "RB": {
@@ -75,7 +75,7 @@
                 }
             }
         }, 
-        "RPAD": {
+        "RPADPRESS": {
             "action": "button(Keys.BTN_LEFT)"
         }, 
         "START": {

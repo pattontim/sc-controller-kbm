@@ -322,6 +322,7 @@ Profile* scc_profile_from_json(const char* filename, int* error, bool apply_over
 	}
 
 	// TODO: generalize to *_overrides
+	// FIXME: support sc26 overrides
 	json_object* btn_overrides = json_object_get_object(root, "deck_btn_overrides");
 	bool overrides_applied = false;
 
@@ -341,11 +342,8 @@ Profile* scc_profile_from_json(const char* filename, int* error, bool apply_over
 		}
 		if (scc_action_is_none(p->buttons[i])) {
 			if ((i == scbutton_to_index(B_LPADPRESS)) || (i == scbutton_to_index(B_RPADPRESS))) {
-				// Backwards compatibility thing - old name of [LR]PADPRESS
-				// in buttons array was just [LR]PAD.
-				char tmp[] = "LPAD";
-				tmp[0] = button_names[i][0];
-				p->buttons[i] = decode_json_action(json_object_get_object(buttons, tmp));
+				// warn of legacy "[LR]PAD" action, but do not fail
+				WARN("Legacy LPAD or RPAD action ignored in '%s'. Please use LPADPRESS or RPADPRESS instead.", filename);
 			}
 		}
 	}

@@ -79,7 +79,7 @@
                 }
             }
         }, 
-        "RPAD": {
+        "RPADPRESS": {
             "action": "button(Keys.BTN_LEFT)"
         }, 
         "START": {

@@ -27,7 +27,7 @@
             "action": "button(Keys.KEY_G)", 
             "name": "Gestures"
         }, 
-        "LPAD": {
+        "LPADPRESS": {
             "action": "button(Keys.BTN_MIDDLE)", 
             "name": "Toggle Zoom"
         }, 
@@ -39,7 +39,7 @@
             "action": "button(Keys.KEY_F)", 
             "name": "Comm"
         }, 
-        "RPAD": {
+        "RPADPRESS": {
             "action": "button(Keys.BTN_THUMBR)"
         }, 
         "START": {

@@ -23,7 +23,7 @@
             "action": "button(Keys.KEY_O)", 
             "name": "Boost"
         }, 
-        "LPAD": {
+        "LPADPRESS": {
             "action": "button(Keys.BTN_THUMBL)"
         }, 
         "RB": {
@@ -34,7 +34,7 @@
             "action": "button(Keys.KEY_O)", 
             "name": "Boost"
         }, 
-        "RPAD": {
+        "RPADPRESS": {
             "action": "button(Keys.BTN_LEFT)", 
             "name": "Tap"
         }, 

@@ -28,7 +28,7 @@
             "action": "button(Keys.BTN_NORTH)", 
             "name": "Gear Down"
         }, 
-        "LPAD": {
+        "LPADPRESS": {
             "action": "button(Keys.BTN_EAST)", 
             "name": "Handbreak"
         }, 
@@ -40,7 +40,7 @@
             "action": "button(Keys.BTN_GAMEPAD)", 
             "name": "Gear Up"
         }, 
-        "RPAD": {
+        "RPADPRESS": {
             "action": "button(Keys.BTN_THUMBR)", 
             "name": "Look Back"
         }, 
