@@ -170,9 +170,9 @@ int bt_handle_input(SCController *sc, uint8_t *raw) {
     sc->input.rtrig = (uint8_t)(*(int16_t*)(i + T_TRIGGER_R) >> 7);  
   
     sc->input.stick_x  =  *(int16_t*)(i + T_STICK_L_X);  
-    sc->input.stick_y  = -*(int16_t*)(i + T_STICK_L_Y);  
+    sc->input.stick_y  = *(int16_t*)(i + T_STICK_L_Y);  
     sc->input.rstick_x =  *(int16_t*)(i + T_STICK_R_X);  
-    sc->input.rstick_y = -*(int16_t*)(i + T_STICK_R_Y);  
+    sc->input.rstick_y = *(int16_t*)(i + T_STICK_R_Y);  
   
     sc->input.lpad_x = *(int16_t*)(i + T_PAD_L_X);  
     sc->input.lpad_y = *(int16_t*)(i + T_PAD_L_Y);  
