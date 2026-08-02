@@ -139,15 +139,16 @@ static void whole(Action* _a, Mapper* m, AxisValue x, AxisValue y, PadStickTrigg
 	DPadAction* dpad = container_of(_a, DPadAction, action);
 	side sides[2];
 	compute_side(dpad, x, y, sides);
-	DDEBUG("whole on pad");
 	for (uint8_t i=0; i<=1; i++) {
 		if ((sides[i] != dpad->state[i]) && (dpad->state[i] != -1)) {
 			Action* a = dpad->actions[dpad->state[i]];
+			DEBUG("DPad: Releasing %s", a->type);
 			a->button_release(a, m);
 			dpad->state[i] = -1;
 		}
 		if ((sides[i] != -1) && (sides[i] != dpad->state[i])) {
 			Action* a = dpad->actions[sides[i]];
+			DEBUG("DPad: Pressing %s", a->type);
 			a->button_press(a, m);
 		}
 		dpad->state[i] = sides[i];

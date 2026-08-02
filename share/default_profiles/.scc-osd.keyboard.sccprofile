@@ -9,10 +9,10 @@
 		"RB":		{ "action": "button(Keys.KEY_SPACE)" },
 		"LGRIP":	{ "action": "button(Keys.KEY_LEFTSHIFT)" },
 		"LGRIP2":	{ "action": "button(Keys.KEY_LEFTSHIFT)" },
-		"LPAD":		{ "action": "OSK.press(LEFT)" },
+		"LPADPRESS":		{ "action": "OSK.press(LEFT)" },
 		"RGRIP":	{ "action": "button(Keys.KEY_RIGHTALT)" },
 		"RGRIP2":	{ "action": "button(Keys.KEY_RIGHTALT)" },
-		"RPAD":		{ "action": "OSK.press(RIGHT)" },
+		"RPADPRESS":		{ "action": "OSK.press(RIGHT)" },
 		"X":		{ "action": "button(Keys.KEY_LEFTCTRL)" },
 		"Y":		{ "action": "button(Keys.KEY_TAB)" }
 	},

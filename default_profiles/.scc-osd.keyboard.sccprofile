@@ -6,9 +6,9 @@
 		"LB":		{ "action": "button(Keys.KEY_BACKSPACE)" },
 		"RB":		{ "action": "button(Keys.KEY_SPACE)" },
 		"LGRIP":	{ "action": "button(Keys.KEY_LEFTSHIFT)" },
-		"LPAD":		{ "action": "OSK.press(LEFT)" },
+		"LPADPRESS":		{ "action": "OSK.press(LEFT)" },
 		"RGRIP":	{ "action": "button(Keys.KEY_RIGHTALT)" },
-		"RPAD":		{ "action": "OSK.press(RIGHT)" },
+		"RPADPRESS":		{ "action": "OSK.press(RIGHT)" },
 		"START":	{ "action": "button(Keys.KEY_TAB)" },
 		"X":		{ "action": "OSK.close()" },
 		"Y":		{ "action": "OSK.close()" }

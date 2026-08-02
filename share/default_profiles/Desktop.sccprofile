@@ -7,7 +7,7 @@
 		"LB"        : { "action": "button(Keys.KEY_BACKSPACE)" },
 		"START"     : { "action": "keyboard()" },
 		"RB"        : { "action": "button(Keys.KEY_SPACE)" },
-		"RPAD"	    : { "action": "button(Keys.BTN_LEFT)" },
+		"RPADPRESS"	: { "action": "button(Keys.BTN_LEFT)" },
 		"DOTS"		: { "action": "button(Keys.KEY_LEFTMETA)" },
 		"LGRIP"		: { "action": "button(Keys.KEY_LEFTSHIFT)" },
 		"RGRIP"		: { "action": "button(Keys.KEY_RIGHTALT)" },
