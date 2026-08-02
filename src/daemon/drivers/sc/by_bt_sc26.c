@@ -136,8 +136,16 @@ static uint32_t map_triton_buttons(uint32_t b) {
 int bt_handle_input(SCController *sc, uint8_t *raw) {  
     if (sc->mapper == NULL) return 0;  
   
-    // hidraw/SDL path prepends the numbered-report ID byte; the sc26re  
-    // offset table is relative to the BLE body (byte 0 == seq_num), so skip 1.  
+    // hidraw prepends the report-ID byte; raw[0] = report ID, raw[1+] = body.
+    // only parse controller-state reports (0x45 BLE, 0x42 wired). Skip
+    // battery (0x43), wireless status (0x79), etc - misparsing those as
+    // state reports fires garbage buttons.
+    uint8_t report_id = raw[0];
+    if (report_id != 0x45 && report_id != 0x42) {
+        return 0;
+    }
+  
+    // offset table is relative to the BLE body (byte 0 == seq_num).
     uint8_t *i = raw + 1;  
   
     uint32_t buttons = *(uint32_t*)(i + T_BUTTONS);  
@@ -171,7 +179,6 @@ int bt_handle_input(SCController *sc, uint8_t *raw) {
         dbg_d++;  
     }  
   
-    sc->mapper->input(sc->mapper, &sc->input);  
     return 1;  
 }
 
