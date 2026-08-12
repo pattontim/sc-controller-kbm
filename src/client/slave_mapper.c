@@ -249,7 +249,46 @@ static ControllerFlags get_flags(Mapper* _m) {
 	return m->c_flags;
 }
 
-static void haptic_effect(Mapper* _m, HapticData* hdata) { }
+static void haptic_effect(Mapper* _m, HapticData* hdata) {
+	struct SlaveMapper* m = container_of(_m, struct SlaveMapper, mapper);
+
+	// Map HapticPos -> SIDE token expected by the daemon's Feedback: parser
+	const char* side;
+	switch (hdata->pos) {
+		case HAPTIC_LEFT:  side = "LEFT";  break;
+		case HAPTIC_RIGHT: side = "RIGHT"; break;
+		case HAPTIC_BOTH:  side = "BOTH";  break;
+		default: return;   // unknown position, ignore
+	}
+
+	// Map HapticCommand -> COMMAND token. Analog-only requests (NONE) with
+	// amplitude > 0 are translated to TICK so legacy feedback() profiles
+	// produce haptics on the Triton. Analog with amplitude==0 is ignored.
+	HapticCommand cmd = hdata->command;
+	if (cmd == HAPTIC_CMD_NONE) {
+		if (hdata->amplitude == 0) return;
+		cmd = HAPTIC_CMD_TICK;
+	}
+
+	const char* cmd_str;
+	switch (cmd) {
+		case HAPTIC_CMD_TICK:  cmd_str = "TICK";  break;
+		case HAPTIC_CMD_CLICK: cmd_str = "CLICK"; break;
+		default: return;   // unsupported -> ignore
+	}
+
+	// gain: use hdata->gain if set, else scdroid default 0x0A
+	int gain = (hdata->gain != 0) ? (int)hdata->gain : 0x0A;
+
+	char command[64];
+	if (snprintf(command, 63, "Feedback: %s %s %i", side, cmd_str, gain) >= 63) {
+		LERROR("Failed to send feedback: Out of memory");
+		return;
+	}
+
+	int32_t rid = sccc_request(m->client, command);
+	free(sccc_get_response(m->client, rid));
+}
 
 static void input(Mapper* _m, ControllerInput* i) { }
 

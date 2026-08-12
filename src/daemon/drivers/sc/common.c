@@ -165,12 +165,24 @@ static inline void haptic_effect_add(HapticData* target, HapticData* src) {
 	target->period = p;
 }
 
-static void haptic_effect(Controller* c, HapticData* hdata) {
-	SCController* sc = container_of(c, SCController, controller);
-	if ((hdata->pos == HAPTIC_RIGHT) || (hdata->pos == HAPTIC_BOTH))
-		haptic_effect_add(&sc->hdata[0], hdata);
-	if ((hdata->pos == HAPTIC_LEFT) || (hdata->pos == HAPTIC_BOTH))
-		haptic_effect_add(&sc->hdata[1], hdata);
+static void haptic_effect(Controller* c, HapticData* hdata) {  
+	SCController* sc = container_of(c, SCController, controller);  
+  
+	// render Triton named primitives as legacy amplitude/period presets  
+	if (hdata->command != HAPTIC_CMD_NONE) {  
+		switch (hdata->command) {  
+			case HAPTIC_CMD_TICK:				// short, light  
+				hdata->amplitude = 0x00A0; hdata->period = 0x0140; break;  
+			case HAPTIC_CMD_CLICK:				// stronger, longer  
+				hdata->amplitude = 0x0300; hdata->period = 0x00F0; break;  
+			default: break;  
+		}  
+	}  
+  
+	if ((hdata->pos == HAPTIC_RIGHT) || (hdata->pos == HAPTIC_BOTH))  
+		haptic_effect_add(&sc->hdata[0], hdata);  
+	if ((hdata->pos == HAPTIC_LEFT) || (hdata->pos == HAPTIC_BOTH))  
+		haptic_effect_add(&sc->hdata[1], hdata);  
 }
 
 static union {

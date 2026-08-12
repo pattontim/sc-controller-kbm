@@ -73,6 +73,7 @@ static ActionOE feedback_constructor(const char* keyword, ParameterList params) 
 	
 	FeedbackModifier* f = malloc(sizeof(FeedbackModifier));
 	if (f == NULL) return (ActionOE)scc_oom_action_error();
+	memset(&f->hdata, 0, sizeof(HapticData));  // init command=NONE, gain=0
 	scc_action_init(&f->action, KW_FEEDBACK, AF_MODIFIER, &feedback_dealloc, &feedback_to_string);
 	f->action.describe = &describe;
 	f->action.compress = &compress;

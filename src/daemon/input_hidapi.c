@@ -95,6 +95,58 @@ static int sccd_input_hidapi_claim_interfaces_by(InputDevice* _dev, int cls, int
 static void sccd_input_hidapi_hid_write(InputDevice* _dev, uint16_t idx, uint8_t* data, uint16_t length) {
 	DEV_TYPECHECK(_dev, sccd_input_hidapi_dev_close, (void)0);
 	HidapiInputDevice* dev = container_of(_dev, HidapiInputDevice, dev);
+
+	// FIXME: take only the path that works and simplify this
+	/* Triton (SC2 BLE 0x1303): OUTPUT reports (e.g. 0x82 HAPTIC_COMMAND).
+	The Valve opcode in data[0] (0x82) IS the HID report ID per the firmware's
+	VALVE_REPORT(output_82, ...). scdroid writes [side][cmd][gain] to a GATT
+	characteristic with no report ID; over hidraw, hid_write needs the report
+	ID as data[0]. Try the opcode-as-report-ID first, then fall back to the
+	lizard-off-style prepend (0x01/0x00 report ID + opcode as payload). */
+	if (dev->is_triton) {
+		/* Framing attempts:
+		 *  1) [0x82][side][cmd][gain]         — opcode = report ID (standard)
+		 *  2) [0x01][0x82][side][cmd][gain]   — report ID 0x01, opcode = payload
+		 *  3) [0x00][0x82][side][cmd][gain]   — report ID 0x00, opcode = payload
+		 */
+		uint8_t triton_buf[65];
+		uint16_t copy_len = length < 64 ? length : 64;
+		int err = -1;
+
+		/* Attempt 1: data as-is (data[0] is the report ID) */
+		printf("[TRITON-OUT] attempt as-is report_id=0x%02X payload=%02X %02X %02X %02X %02X\n",
+		       data[0], data[0], data[1], data[2], data[3], data[4]);
+		err = hid_write(dev->hid, data, length);
+		if (err >= 0) {
+			printf("[TRITON-OUT] as-is OK (%d bytes sent)\n", err);
+			return;
+		}
+		char errbuf[256];
+		wcstombs(errbuf, hid_error(dev->hid), sizeof(errbuf) - 1);
+		printf("[TRITON-OUT] as-is FAILED: %s\n", errbuf);
+
+		/* Attempts 2 & 3: prepend report ID */
+		static const uint8_t triton_rids[] = { 0x01, 0x00 };
+		for (int t = 0; t < 2; t++) {
+			triton_buf[0] = triton_rids[t];
+			memcpy(&triton_buf[1], data, copy_len);
+			if (copy_len < 64)
+				memset(&triton_buf[1 + copy_len], 0, 64 - copy_len);
+			printf("[TRITON-OUT] attempt report_id=0x%02X payload=%02X %02X %02X %02X %02X\n",
+			       triton_buf[0], data[0], data[1], data[2], data[3], data[4]);
+			err = hid_write(dev->hid, triton_buf, 65);
+			if (err < 0) {
+				wcstombs(errbuf, hid_error(dev->hid), sizeof(errbuf) - 1);
+				printf("[TRITON-OUT] report_id=0x%02X FAILED: %s\n", triton_buf[0], errbuf);
+				continue;
+			}
+			printf("[TRITON-OUT] report_id=0x%02X OK (%d bytes sent)\n", triton_buf[0], err);
+			return;
+		}
+		LERROR("[TRITON-OUT] all report-id attempts failed");
+		return;
+	}
+
 	hid_write(dev->hid, data, length);
 }
 

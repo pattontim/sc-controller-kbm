@@ -10,6 +10,8 @@
 #include "scc/utils/iterable.h"
 #include "scc/tools.h"
 #include "daemon.h"
+#include <string.h>
+#include <stdlib.h>
 
 typedef struct Client Client;
 
@@ -101,6 +103,40 @@ void sccd_on_client_command(Client* client, char* buffer, size_t len) {
 			sccd_exit();
 			return send_ok(client, tokens);
 		}
+		break;
+	/** departure from sc-controller - deck and sc26 are the new standard */
+	case 'F':  
+		if (0 == strcmp(command, "Feedback:")) {  
+			// Feedback: <SIDE> <COMMAND> [gain_db]  
+			//   SIDE    = LEFT | RIGHT | BOTH  
+			//   COMMAND = TICK | CLICK | PULSE(=amplitude/period legacy)  
+			const char* side = iter_next(tokens);  
+			const char* cmd  = iter_next(tokens);  
+			const char* gain = iter_next(tokens);   // optional, "" if absent  
+  
+			HapticData hdata;  
+			memset(&hdata, 0, sizeof(hdata));  
+  
+			if      (0 == strcmp(side, "LEFT"))  hdata.pos = HAPTIC_LEFT;  
+			else if (0 == strcmp(side, "RIGHT")) hdata.pos = HAPTIC_RIGHT;  
+			else if (0 == strcmp(side, "BOTH"))  hdata.pos = HAPTIC_BOTH;  
+			else return send_error(client, tokens, "Fail: invalid side\n");  
+  
+			if      (0 == strcmp(cmd, "TICK"))  hdata.command = HAPTIC_CMD_TICK;  
+			else if (0 == strcmp(cmd, "CLICK")) hdata.command = HAPTIC_CMD_CLICK;  
+			else return send_error(client, tokens, "Fail: invalid feedback command\n");  
+  
+			hdata.gain = (gain[0] != 0) ? (int8_t)atoi(gain) : 0x0A;
+  
+			Controller* c = client->mapper->get_controller(client->mapper);  
+			if ((c != NULL) && (c->haptic_effect != NULL)) {  
+				c->haptic_effect(c, &hdata);  
+				if (c->flush != NULL) c->flush(c, client->mapper);  
+			}  
+			// controllers without haptic_effect silently ignore -> still OK  
+			return send_ok(client, tokens);  
+		}  
+		break;
 	case 'L':
 		if (0 == strcmp(command, "Lock:")) {
 			// Generates list of sources and attempts to lock them

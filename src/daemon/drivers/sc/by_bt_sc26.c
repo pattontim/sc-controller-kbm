@@ -29,6 +29,7 @@
 #define TRITON_REPORT_SIZE	64  
 #define READ_BUFFER_SIZE	64 
 #define UNLIZARD_INTERVAL	250 // sc26re says 3000ms, sc26 has a 250Hz poll, so 4ms. But wraps at 0xff.
+#define PT_HAPTIC_COMMAND	0x82
 
 static controller_available_cb controller_available = NULL;
 
@@ -239,6 +240,45 @@ void input_interrupt_cb(Daemon* d, InputDevice* dev, uint8_t endpoint, const uin
 	}	
 }
 
+static void triton_haptic_effect(Controller* c, HapticData* hdata) {
+	SCController* sc = container_of(c, SCController, controller);
+
+	// Translate analog feedback (command==NONE, amplitude>0) to TICK so
+	// legacy feedback() profiles and wholehaptic rolling-clicks produce
+	// haptics on the Triton. amplitude==0 means "disabled" -> ignore.
+	HapticCommand cmd = hdata->command;
+	if (cmd == HAPTIC_CMD_NONE) {
+		if (hdata->amplitude == 0) return;
+		cmd = HAPTIC_CMD_TICK;
+	}
+
+	// Diagnostic: trace hdata fields to catch payload corruption
+	printf("[TRITON-HAPTIC] pos=%d command=%d->%d gain=%d amplitude=%u period=%u\n",
+	       (int)hdata->pos, (int)hdata->command, (int)cmd, (int)hdata->gain,
+	       (unsigned)hdata->amplitude, (unsigned)hdata->period);
+
+	uint8_t sides[2]; int n = 0;
+	if ((hdata->pos == HAPTIC_LEFT)  || (hdata->pos == HAPTIC_BOTH)) sides[n++] = 0x00;
+	if ((hdata->pos == HAPTIC_RIGHT) || (hdata->pos == HAPTIC_BOTH)) sides[n++] = 0x01;
+
+	// gain: use hdata->gain if set, else scdroid default 0x0A
+	uint8_t gain = (hdata->gain != 0) ? (uint8_t)hdata->gain : 0x0A;
+
+	for (int k = 0; k < n; k++) {
+		// 0x82 (ID_OUT_REPORT_HAPTIC_COMMAND) is the HID REPORT ID, not a
+		// payload byte. scdroid writes [side][cmd][gain] to the haptic
+		// characteristic; over hidraw the report ID becomes data[0], so the
+		// full frame is [0x82][side][cmd][gain]. sccd_input_hidapi_hid_write
+		// tries the opcode-as-report-ID framing first.
+		uint8_t data[TRITON_REPORT_SIZE] = { 0 };
+		data[0] = PT_HAPTIC_COMMAND;      // 0x82 = HID report ID
+		data[1] = sides[k];               // 0=LEFT, 1=RIGHT
+		data[2] = (uint8_t)cmd;           // 0x01 TICK / 0x02 CLICK
+		data[3] = gain;                   // gain_db
+		sc->dev->hid_write(sc->dev, sc->idx, data, TRITON_REPORT_SIZE);
+	}
+}
+
 static void turnoff(Controller* c) {
 	DDEBUG("TURNING OFF CONTROLLER %s", c->get_description(c));
 	// not supported yet
@@ -291,6 +331,7 @@ static bool hotplug_cb(Daemon* daemon, const InputDeviceData* idata) {
 		goto hotplug_cb_fail;
 	}
 	sc->controller.turnoff = &turnoff;
+	sc->controller.haptic_effect = &triton_haptic_effect;
 	return true;
 hotplug_cb_failed_to_configure:
 	LERROR("Failed to configure Triton controller");

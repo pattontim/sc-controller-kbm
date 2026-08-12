@@ -226,18 +226,27 @@ typedef enum HapticPos {
 	HAPTIC_BOTH			= 2,
 } HapticPos;
 
+typedef enum HapticCommand {
+	HAPTIC_CMD_NONE		= 0,	/* analog amplitude/period pulse (legacy) */  
+	HAPTIC_CMD_TICK		= 1,	/* key-switch tick  (Triton 0x01) */  
+	HAPTIC_CMD_CLICK	= 2,	/* press / click    (Triton 0x02) */  
+} HapticCommand;
+
 struct HapticData {
 	HapticPos			pos;
+	HapticCommand		command;
+	int8_t				gain;
 	uint16_t			amplitude;
 	float				frequency;
 	uint16_t			period;
 };
 
-#define HAPTIC_ENABLED(h) ((h)->amplitude != 0)
+#define HAPTIC_ENABLED(h) (((h)->amplitude != 0) || ((h)->command != HAPTIC_CMD_NONE))  
 #define HAPTIC_DISABLE(h) do {		\
 		(h)->period = 0;			\
 		(h)->amplitude = 0;			\
 		(h)->frequency = 0;			\
+		(h)->command = HAPTIC_CMD_NONE;	\  
 	} while (0)
 
 #define STICK_PAD_MIN		((AxisValue)-0x8000)
