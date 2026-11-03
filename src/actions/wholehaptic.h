@@ -11,6 +11,19 @@
 #include "scc/controller.h"
 #include "scc/mapper.h"
 #include <math.h>
+#include <stdlib.h>
+
+
+/* Trackball / pad-movement 'rolling click' haptics.
+ * Off by default: the OSD keyboard emits its own per-key ticks, and pad
+ * movement ticks would duplicate them while typing. Set SCC_TRACKBALL_HAPTICS
+ * in the environment to re-enable. */
+static inline bool wholehaptic_trackball_enabled(void) {
+	static int enabled = -1;
+	if (enabled < 0)
+		enabled = (getenv("SCC_TRACKBALL_HAPTICS") != NULL) ? 1 : 0;
+	return enabled != 0;
+}
 
 
 typedef struct {
@@ -32,6 +45,7 @@ static inline void wholehaptic_init(WholeHapticData* w) {
 }
 
 static void wholehaptic_change(WholeHapticData* w, Mapper* m, double dx, double dy) {
+	if (!wholehaptic_trackball_enabled()) return;
 	if (HAPTIC_ENABLED(&w->hdata)) {
 		w->a.x += dx;
 		w->a.y += dy;

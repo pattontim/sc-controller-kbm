@@ -193,6 +193,37 @@ static void osd_keyboard_set_cursor_position(OSDKeyboard* kbd, int index, AxisVa
 	);
 	
 	vec_set(priv->cursors[index].position, x, y);
+
+	/* scdroid-style: light tick when the cursor slides onto a different key.
+	 * Fires only on highlight change, so sliding within one key is silent.
+	 * One tick is swallowed after a release, because the cursor snaps back to
+	 * center (p/j) and that is not a user-driven highlight change. */
+	if (priv->haptics_ready && (priv->slave_mapper != NULL)) {
+		bool matched = false;
+		FOREACH_IN(Button*, b, priv->buttons) {
+			if (is_button_under_cursor(priv, index, b)) {
+				matched = true;
+				if (b->index != priv->cursors[index].hovered_button_index) {
+					priv->cursors[index].hovered_button_index = b->index;
+					if (priv->cursors[index].suppress_hover_tick) {
+						priv->cursors[index].suppress_hover_tick = false;
+					} else {
+						HapticData hd = { 0 };
+						hd.pos = HAPTIC_BOTH;
+						hd.command = HAPTIC_CMD_TICK;
+						hd.gain = 1;    /* 1 dB - very light key-switch tick */
+						priv->slave_mapper->haptic_effect(priv->slave_mapper, &hd);
+					}
+				}
+				break;
+			}
+		}
+		if (!matched) {
+			priv->cursors[index].hovered_button_index = -1;
+			priv->cursors[index].suppress_hover_tick = false;
+		}
+	}
+
 	gtk_widget_queue_draw(GTK_WIDGET(kbd));
 }
 
@@ -209,6 +240,16 @@ static void osd_keyboard_set_cursor_pressed(Mapper* m, OSDKeyboard* kbd, int ind
 					DDEBUG("Button %i pressed, label: %s, index: %i, keycode: %i", b->index, b->label, b->index, b->keycode);
 					priv->cursors[index].pressed_button_index = b->index;
 					a->button_press(a, m);
+
+					/* scdroid-style: press tick, slightly stronger than the hover tick.
+					 * TICK (not CLICK) - CLICK is a longer, heavier pulse. */
+					{
+						HapticData hd = { 0 };
+						hd.pos = HAPTIC_BOTH;
+						hd.command = HAPTIC_CMD_TICK;
+						hd.gain = 3;    /* scdroid's 3 dB reference */
+						m->haptic_effect(m, &hd);
+					}
 				}
 				// only for performance
 				break;
@@ -221,6 +262,8 @@ static void osd_keyboard_set_cursor_pressed(Mapper* m, OSDKeyboard* kbd, int ind
 			a->button_release(a, m);
 		}
 		priv->cursors[index].pressed_button_index = -1;
+		/* Cursor snaps back to center on release; swallow that hover tick. */
+		priv->cursors[index].suppress_hover_tick = true;
 	}
 	gtk_widget_queue_draw(GTK_WIDGET(kbd));
 }
@@ -381,6 +424,11 @@ OSDKeyboard* osd_keyboard_new(OSDKeyboardOptions* options) {
 	osd_keyboard_set_cursor_position(kbd, 1, 0, 0);
 	priv->cursors[0].pressed_button_index = -1;
 	priv->cursors[1].pressed_button_index = -1;
+	priv->cursors[0].hovered_button_index = -1;
+	priv->cursors[1].hovered_button_index = -1;
+	/* Enable keyboard haptics only after the initial cursor placement above,
+	 * so startup does not emit a spurious tick. */
+	priv->haptics_ready = true;
 
 	priv->options = options;
 

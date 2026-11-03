@@ -59,8 +59,11 @@ typedef struct _OSDKeyboardPrivate {
 	struct {
 		dvec_t					position;
 		int						pressed_button_index;
+		int						hovered_button_index;
+		bool					suppress_hover_tick;
 		GdkPixbuf*				image;
 	}							cursors[2];
+	bool						haptics_ready;
 	intmap_t					button_images;
 	struct Limits				limits[3];
 	struct HelpArea				help_areas[MAX_HELP_AREAS];
