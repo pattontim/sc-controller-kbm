@@ -261,8 +261,9 @@ static void triton_haptic_effect(Controller* c, HapticData* hdata) {
 	if ((hdata->pos == HAPTIC_LEFT)  || (hdata->pos == HAPTIC_BOTH)) sides[n++] = 0x00;
 	if ((hdata->pos == HAPTIC_RIGHT) || (hdata->pos == HAPTIC_BOTH)) sides[n++] = 0x01;
 
-	// gain: use hdata->gain if set, else scdroid default 0x0A
-	uint8_t gain = (hdata->gain != 0) ? (uint8_t)hdata->gain : 0x0A;
+	// gain: use hdata->gain if set, else a loud test default (0x40).
+	// 0x0A (10 dB) is subtle; 0x40 makes a success unmissable while testing.
+	uint8_t gain = (hdata->gain != 0) ? (uint8_t)hdata->gain : 0x40;
 
 	for (int k = 0; k < n; k++) {
 		// 0x82 (ID_OUT_REPORT_HAPTIC_COMMAND) is the HID REPORT ID, not a
@@ -270,12 +271,18 @@ static void triton_haptic_effect(Controller* c, HapticData* hdata) {
 		// characteristic; over hidraw the report ID becomes data[0], so the
 		// full frame is [0x82][side][cmd][gain]. sccd_input_hidapi_hid_write
 		// tries the opcode-as-report-ID framing first.
-		uint8_t data[TRITON_REPORT_SIZE] = { 0 };
+		//
+		// Length matters: the firmware declares output_82 as a 3-byte report
+		// (transport_ble.c VALVE_REPORT(output_82, ..., 3)) and rejects
+		// wrong-length writes with BT_ATT_ERR_INVALID_ATTRIBUTE_LEN. Sending
+		// TRITON_REPORT_SIZE (64) makes the GATT write 63 bytes, which the
+		// device silently drops. Send exactly 4 bytes: ID + 3-byte payload.
+		uint8_t data[4] = { 0 };
 		data[0] = PT_HAPTIC_COMMAND;      // 0x82 = HID report ID
 		data[1] = sides[k];               // 0=LEFT, 1=RIGHT
 		data[2] = (uint8_t)cmd;           // 0x01 TICK / 0x02 CLICK
 		data[3] = gain;                   // gain_db
-		sc->dev->hid_write(sc->dev, sc->idx, data, TRITON_REPORT_SIZE);
+		sc->dev->hid_write(sc->dev, sc->idx, data, 4);
 	}
 }
 
